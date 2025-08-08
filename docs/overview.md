@@ -15,62 +15,6 @@ using Celery for task management. PostgreSQL database for storing workflow
 definitions, task states, and results. Web hooks are used to trigger workflows
 and tasks.
 
-## Workflow Execution Flow
-
-### 1. User Action (Frontend)
-
-- The user interacts with the React frontend (service: `frontend`) and submits
-a new workflow/task via a button or form.
-
----
-
-### 2. API Request (Backend)
-
-- The frontend sends a POST request to the Flask backend (`web` service) at
-`/api/workflows` with workflow/task details.
-
----
-
-### 3. Workflow/Task Creation (Backend)
-
-- The Flask backend creates a new workflow entry in the worflow Postgres data base table.
-- The backend does **not** directly start the first task. Instead, database emits a notification.
-- A web hook background listener in the backend receives the notification and starts
-a workflows.
-
----
-
-### 4. Task Execution (Celery Worker / Kubernetes Job)
-
-##### Celery Worker
-- Celery workers are for quick tasks that can be handled in the background
-(e.g. data retrieval, simple computations).
-- The Celery worker (`worker` service) picks up the task from the Redis queue.
-- The worker directly executes the task.
-- This can also be used to simulate instrument workdlows for testing purposes.
-
-#### Kubernetes Job
-- For longer-running tasks, or tasks that benefit from isoloation, such as real
-instrument operations, a Kubernetes Job is created.
-- This allows for better resource management and isolation, and more modular
-workflow building.
-
----
-
-### 6. Results Update (Backend)
-
-- The backend receives the webhook, updates the task status and results in the
-database.
-- If there are more tasks in the workflow, the backend schedules the next task via database update, which triggers another notification and service call.
-
----
-
-### 7. Frontend Update
-
-- The frontend polls or receives updates from the backend (e.g., via polling
-`/api/workflows`).
-- The UI updates to show the latest task statuses and results, including graphs
-and lab visuals.
 
 
 ### TODO
@@ -96,6 +40,20 @@ This provides:
 **3. Data Fabric**
 - Need to bring in the Apache services, Kafka, Ranger, NiFi, etc. to handle
 data ingestion, processing, and security.
+
+
+**. 4.
+- **Audit trails:** Track all changes, executions, and user actions with timestamps and user IDs.
+- **Traceability:** Ensure every workflow, task, and recipe is uniquely identifiable and linked.
+- **Reproducibility:** Store all parameters, code references, and versions for every execution.
+- **Integrity:** Use hashes to detect changes and ensure definitions are not tampered with.
+- **Electronic signatures:** Implement user authentication and authorization for critical actions.
+- **Data retention and backup:** Ensure secure, reliable storage and backup of all records.
+- **Validation:** Use JSON schemas and Pydantic models to validate all data structures.
+- **Access control:** Enforce role-based permissions and restrict access to sensitive operations.
+
+Your current schema and architectural approach support these requirements.  
+To reach full FDA compliance (e.g., 21 CFR Part 11), you will need to add electronic signatures, robust access control, and comprehensive audit logging, but your foundation is strong and competitive.
 
 ### Workflow Execution Diagram
 

@@ -1,39 +1,50 @@
-import os
-import requests
-from celery import Celery
+from celery import shared_task
+import logging
+from .models import db, Task, Service
 
-celery = Celery(__name__)
-celery.config_from_object("laf.config:Config", namespace="CELERY")
-
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://web:5000")
+logger = logging.getLogger(__name__)
 
 
-@celery.task(bind=True)
-def run_instrument_task(self, task_id, instrument_name):
-    """
-    A Celery task to trigger a mock instrument.
-    """
-    instrument_url = f"http://{instrument_name}:5001"
+@shared_task
+def launch_service(task_id, service_id, parameters):
     try:
-        # Update task status to 'running' via webhook
-        requests.post(
-            f"{BACKEND_URL}/api/webhook/task/update",
-            json={"task_id": task_id, "status": "running"},
-        )
+        task = Task.query.get(task_id)
+        service = Service.query.get(service_id)
+        if not task or not service:
+            logger.error(
+                f"Task or service not found (task_id={task_id}, service_id={service_id})"
+            )
+            return
 
-        # Call the instrument to start its process
-        response = requests.post(f"{instrument_url}/run", json={"task_id": task_id})
-        response.raise_for_status()
-        return {
-            "status": "instrument process started",
-            "instrument_response": response.json(),
-        }
-    except requests.exceptions.RequestException as e:
-        # Update task status to 'failed'
-        requests.post(
-            f"{BACKEND_URL}/api/webhook/task/update",
-            json={"task_id": task_id, "status": "failed"},
-        )
-        self.update_state(state="FAILURE", meta=str(e))
-        raise
+        # Example: Launch based on service type
+        if service.type == "kubernetes":
+            # Launch Kubernetes job (pseudo-code)
+            logger.info(
+                f"Launching Kubernetes job {service.endpoint} with parameters {parameters}"
+            )
+            # k8s_client.launch_job(service.endpoint, parameters)
+        elif service.type == "http":
+            # Call HTTP endpoint
+            import requests
 
+            logger.info(
+                f"Calling HTTP endpoint {service.endpoint} with parameters {parameters}"
+            )
+            requests.post(service.endpoint, json=parameters, timeout=10)
+        elif service.type == "docker":
+            # Launch Docker container (pseudo-code)
+            logger.info(
+                f"Launching Docker container {service.endpoint} with parameters {parameters}"
+            )
+            # docker_client.run(service.endpoint, parameters)
+        else:
+            logger.error(f"Unknown service type: {service.type}")
+
+        # Update task status
+        task.status = "running"
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error launching service: {e}")
+        if task:
+            task.status = "failed"
+            db.session.commit()

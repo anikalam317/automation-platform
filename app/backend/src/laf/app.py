@@ -1,11 +1,10 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from .models import db, Workflow, Task, Result
-from .webhook_handler import WebhookHandler
+from .notification_listenter import NotificationListener
 import threading
 import psycopg2
 import psycopg2.extensions
-import os
 
 
 def create_app():
@@ -32,7 +31,6 @@ def create_app():
         for i, task_data in enumerate(data.get("tasks", [])):
             new_task = Task()
             new_task.name = task_data["name"]
-            new_task.instrument = task_data["instrument"]
             new_task.workflow_id = new_workflow.id
             new_task.order_index = i
             new_task.status = "pending"

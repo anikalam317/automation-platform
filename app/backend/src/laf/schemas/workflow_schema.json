@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Workflow",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "author": { "type": "string" },
+    "author_id": { "type": "integer" },
+    "tasks": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "status": { "type": "string" },
+  },
+  "required": ["name", "author", "tasks"]
+}

@@ -1,0 +1,19 @@
+x-common:
+  main_platform: &main_platform_env
+    MAIN_PLATFORM_URL: "http://web:5000"
+    SIM_SPEED: "1.0"
+
+services:
+  mobilie-phase-prep:
+    build: ./app/simulated-tasks/mobile-phase-prep
+    environment:
+      MAIN_PLATFORM_URL: "http://web:5000"
+    depends_on:
+      - web
+
+  sample-prep:
+    build: ./app/simulated-tasks/sample-prep
+    environment:
+      MAIN_PLATFORM_URL: "http://web:5000"
+    depends_on:
+      - web
