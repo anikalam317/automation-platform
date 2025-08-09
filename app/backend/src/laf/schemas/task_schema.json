@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "order_index": { "type": "integer" },
+    "recipe_id": { "type": "integer" },
+    "parameters": { "type": "object" },
+    "author": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+    "status": { "type": "string" },
+  },
+  "required": ["name", "order_index", "recipe_id", "parameters"]
+}

@@ -46,24 +46,6 @@ services:
       - web
       - redis
 
-  instrument-a:
-    build: ./app/instruments/instrument-a
-    volumes:
-      - ./app/instruments/instrument-a:/app
-    environment:
-      <<: *backend_env
-    depends_on:
-      - web
-
-  instrument-b:
-    build: ./app/instruments/instrument-b
-    volumes:
-      - ./app/instruments/instrument-b:/app
-    environment:
-      <<: *backend_env
-    depends_on:
-      - web
-
   frontend:
     build:
       context: ./app/frontend
