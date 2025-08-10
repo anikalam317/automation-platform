@@ -17,7 +17,7 @@ def create_app():
         db.create_all()
 
     # Initialize webhook handler
-    webhook_handler = WebhookHandler(app)
+    webhook_handler = NotificationListener(app)
 
     @app.route("/api/workflows", methods=["POST"])
     def create_workflow():

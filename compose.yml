@@ -24,7 +24,7 @@ services:
 
   web:
     build: ./app/backend
-    command: ["bash", "/app/wait-for-it.sh", "db:5432", "--", "gunicorn", "--bind", "0.0.0.0:5000", "laf.app:app"]
+    command: ["gunicorn", "--bind", "0.0.0.0:5000", "laf.app:app"]
     volumes:
       - ./app/backend:/app
     ports:
@@ -62,5 +62,20 @@ services:
     depends_on:
       - web
 
+  instrument-a:
+      build: ./app/instruments/instrument-a
+      environment:
+        <<: *backend_env
+      depends_on:
+        - web
+
+  instrument-b:
+    build: ./app/instruments/instrument-b
+    environment:
+      <<: *backend_env
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
+
