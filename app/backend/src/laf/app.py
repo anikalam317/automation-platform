@@ -5,6 +5,7 @@ from .notification_listenter import NotificationListener
 import threading
 import psycopg2
 import psycopg2.extensions
+from .celery import celery
 
 
 def create_app():
@@ -15,6 +16,10 @@ def create_app():
     db.init_app(app)
     with app.app_context():
         db.create_all()
+
+    from .celery import make_celery
+    celery = make_celery(app)
+    app.celery = celery
 
     # Initialize webhook handler
     webhook_handler = NotificationListener(app)

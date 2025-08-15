@@ -37,7 +37,7 @@ services:
 
   worker:
     build: ./app/backend
-    command: poetry run celery -A laf.tasks worker --loglevel=info
+    command: poetry run celery -A laf.celery worker --loglevel=info
     volumes:
       - ./app/backend:/app
     environment:
