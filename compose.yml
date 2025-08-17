@@ -2,7 +2,7 @@ x-common:
   backend: &backend_env
     BACKEND_URL: "http://web:5000"
   database: &database_env
-    DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-laf_db}
+    DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-laf_db}
   celery: &celery_env
     CELERY_BROKER_URL: redis://redis:6379/0
     CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -37,7 +37,7 @@ services:
 
   worker:
     build: ./app/backend
-    command: poetry run celery -A laf.tasks worker --loglevel=info
+    command:  poetry run celery -A laf.celery worker --loglevel=info
     volumes:
       - ./app/backend:/app
     environment:
@@ -59,6 +59,19 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - web
+  instrument-a:
+      build: ./app/instruments/instrument-a
+      environment:
+        <<: *backend_env
+      depends_on:
+        - web
+
+  instrument-b:
+    build: ./app/instruments/instrument-b
+    environment:
+      <<: *backend_env
     depends_on:
       - web
 

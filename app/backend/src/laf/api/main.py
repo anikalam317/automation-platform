@@ -3,10 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import threading
 
-from .core.config import settings
-from .core.database import init_db
-from .api.v1 import workflows, tasks, webhooks
-from .services.handlers.notification_listener import NotificationListener
+from ..core.config import settings
+from ..core.database import init_db
+from .v1 import workflows, tasks, webhooks
+try:
+    from .v1 import services, ai
+except ImportError:
+    services = None
+    ai = None
+from ..services.handlers.notification_listeners import NotificationListener
 
 
 @asynccontextmanager
@@ -44,3 +49,7 @@ app.add_middleware(
 app.include_router(workflows.router)
 app.include_router(tasks.router)
 app.include_router(webhooks.router)
+if services:
+    app.include_router(services.router)
+if ai:
+    app.include_router(ai.router)

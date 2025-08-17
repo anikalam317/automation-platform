@@ -1,10 +1,10 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 import os
 
 
 class Settings(BaseSettings):
-    # Database
-    database_url: str = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
+    # Database - Using SQLite for easy testing
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
     # Redis/Celery
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")

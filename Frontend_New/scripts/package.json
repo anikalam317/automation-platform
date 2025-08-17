@@ -1,0 +1,17 @@
+{
+  "name": "laf-instrument-simulators",
+  "version": "1.0.0",
+  "description": "Laboratory instrument simulators for testing",
+  "main": "simulate-instruments.js",
+  "scripts": {
+    "start": "node simulate-instruments.js",
+    "dev": "nodemon simulate-instruments.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

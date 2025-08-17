@@ -1,0 +1,117 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+.react-flow__node {
+  font-size: 12px;
+}
+
+.react-flow__edge-path {
+  stroke: #b1b1b7;
+  stroke-width: 2;
+}
+
+.react-flow__edge.animated path {
+  stroke-dasharray: 5;
+  animation: dashdraw 0.5s linear infinite;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
+
+.workflow-builder {
+  height: 100vh;
+  display: flex;
+}
+
+.sidebar {
+  width: 300px;
+  border-right: 1px solid #ddd;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;
+  position: relative;
+}
+
+.node-item {
+  padding: 8px 12px;
+  margin: 4px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.node-item:hover {
+  border-color: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.custom-node {
+  background: white;
+  border: 2px solid #1976d2;
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 150px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.custom-node.selected {
+  border-color: #dc004e;
+}
+
+.custom-node .node-header {
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #1976d2;
+}
+
+.custom-node .node-type {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.status-pending { background-color: #ff9800; }
+.status-running { background-color: #2196f3; }
+.status-completed { background-color: #4caf50; }
+.status-failed { background-color: #f44336; }
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}

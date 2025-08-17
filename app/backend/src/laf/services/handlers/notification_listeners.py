@@ -1,73 +1,42 @@
-import json
-import logging
-import psycopg2
-import psycopg2.extensions
-from typing import Dict, Any
+"""
+Mock notification listener for development/testing
+In production, this would connect to PostgreSQL LISTEN/NOTIFY
+"""
 
-from ...core.config import settings
-from ...workflows.coordinator import WorkflowCoordinator
+import time
+import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationListener:
+    """Mock notification listener for development"""
+    
     def __init__(self):
-        self.coordinator = WorkflowCoordinator()
-        self.connection = None
-
-    def connect(self):
-        """Connect to PostgreSQL and listen for notifications"""
-        try:
-            self.connection = psycopg2.connect(settings.database_url)
-            self.connection.set_isolation_level(
-                psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-            )
-            logger.info("Connected to PostgreSQL for notifications")
-        except Exception as e:
-            logger.error(f"Failed to connect to PostgreSQL: {e}")
-            raise
-
+        self.running = False
+        
     def start_listener(self):
-        """Start listening for database notifications"""
-        if not self.connection:
-            self.connect()
-
-        cursor = self.connection.cursor()
-
-        try:
-            # Listen for workflow and task changes
-            cursor.execute("LISTEN workflow_changes;")
-            cursor.execute("LISTEN task_changes;")
-            logger.info("Started listening for database notifications")
-
-            while True:
-                if self.connection.notifies:
-                    self.connection.poll()
-
-                    while self.connection.notifies:
-                        notify = self.connection.notifies.pop(0)
-                        self.handle_notification(notify)
-                else:
-                    # Wait for notifications
-                    self.connection.poll()
-
-        except Exception as e:
-            logger.error(f"Error in notification listener: {e}")
-        finally:
-            cursor.close()
-
-    def handle_notification(self, notify):
-        """Handle incoming notifications"""
-        try:
-            channel = notify.channel
-            payload = json.loads(notify.payload) if notify.payload else {}
-
-            logger.info(f"Received notification on channel {channel}: {payload}")
-
-            if channel == "workflow_changes":
-                self.coordinator.handle_workflow_change(payload)
-            elif channel == "task_changes":
-                self.coordinator.handle_task_change(payload)
-
-        except Exception as e:
-            logger.error(f"Error handling notification: {e}")
+        """Start the notification listener"""
+        logger.info("Starting mock notification listener...")
+        self.running = True
+        
+        # In production, this would:
+        # 1. Connect to PostgreSQL
+        # 2. Listen for NOTIFY events
+        # 3. Handle workflow/task state changes
+        # 4. Trigger next steps in workflow
+        
+        # For now, just log that it's running
+        while self.running:
+            try:
+                # Simulate listening for notifications
+                time.sleep(1)
+            except Exception as e:
+                logger.error(f"Error in notification listener: {e}")
+                break
+                
+    def stop_listener(self):
+        """Stop the notification listener"""
+        logger.info("Stopping notification listener...")
+        self.running = False
