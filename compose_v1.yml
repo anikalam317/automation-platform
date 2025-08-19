@@ -1,0 +1,282 @@
+# Laboratory Automation Framework - Docker Compose Configuration
+# Updated: 2025-08-19
+# 
+# PORT ALLOCATION:
+# - 3005: Frontend (React/Vite/TypeScript)
+# - 3001: Legacy Frontend (optional, profile: legacy)
+# - 8001: Backend API (FastAPI)
+# - 5432: PostgreSQL Database
+# - 6379: Redis (internal)
+# - 5001: Instrument A (legacy, profile: legacy)  
+# - 5002: Sample Preparation Station
+# - 5003: HPLC Analysis System
+# - 5004: Instrument B (legacy, profile: legacy)
+# - 5005: HPLC System A (extended profile)
+# - 5006: GC-MS System (extended profile)
+# - 5007: Liquid Handler (extended profile)
+#
+# PROFILES:
+# - default: Core services (frontend, backend, db, redis, worker, sample-prep, hplc)
+# - legacy: Include old instrument-a and instrument-b services
+# - extended: Include additional mock instrument services (HPLC-A, GC-MS, Liquid Handler)
+#
+# USAGE:
+# - Basic: docker compose -f compose_v1.yml up -d
+# - With legacy: docker compose -f compose_v1.yml --profile legacy up -d  
+# - With extended: docker compose -f compose_v1.yml --profile extended up -d
+# - Full system: docker compose -f compose_v1.yml --profile legacy --profile extended up -d
+
+x-common:
+  backend: &backend_env
+    BACKEND_URL: "http://backend:8001"
+  database: &database_env
+    DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-laf_db}
+  celery: &celery_env
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: redis://redis:6379/0
+  instruments: &instruments_env
+    SAMPLE_PREP_URL: "http://sample-prep-station:5002"
+    HPLC_URL: "http://hplc-system:5003"
+    HPLC_A_URL: "http://hplc-system-a:5005"
+    GCMS_URL: "http://gc-ms-system:5006"
+    LIQUID_HANDLER_URL: "http://liquid-handler:5007"
+
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-laf_db}
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:6-alpine
+
+  # Backend API (FastAPI)
+  backend:
+    build: ./app/backend
+    command: ["bash", "/app/wait-for-it.sh", "db:5432", "--", "poetry", "run", "uvicorn", "laf.api.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    volumes:
+      - ./app/backend:/app
+    ports:
+      - "8001:8001"
+    environment:
+      <<: [*backend_env, *database_env, *celery_env, *instruments_env]
+    depends_on:
+      - db
+      - redis
+
+  # Celery Worker (For concurrent workflow execution)
+  worker:
+    build: ./app/backend
+    command: ["bash", "/app/wait-for-it.sh", "redis:6379", "--", "poetry", "run", "celery", "-A", "laf.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+    volumes:
+      - ./app/backend:/app
+    environment:
+      <<: [*backend_env, *database_env, *celery_env, *instruments_env]
+    depends_on:
+      - backend
+      - redis
+      - sample-prep-station
+      - hplc-system
+
+  # Frontend (New React + TypeScript + Material-UI)
+  frontend_new:
+    build:
+      context: ./app/frontend_new
+      dockerfile: Dockerfile
+    volumes:
+      - ./app/frontend_new:/app
+      - /app/node_modules
+    ports:
+      - "3005:3000"  # Changed to match our current setup
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_URL=http://localhost:8001
+      - NODE_ENV=development
+    depends_on:
+      - backend
+
+  # Original Frontend (Legacy - optional)
+  frontend_legacy:
+    build:
+      context: ./app/frontend
+      args:
+        USER_ID: ${UID}
+    volumes:
+      - ./app/frontend:/app
+      - /app/node_modules
+    ports:
+      - "3001:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - backend
+    profiles:
+      - legacy  # Only start with --profile legacy
+
+  # Original Laboratory Instruments (Legacy)
+  instrument-a:
+    build: ./app/instruments/instrument-a
+    ports:
+      - "5001:5001"
+    environment:
+      <<: *backend_env
+    depends_on:
+      - backend
+    profiles:
+      - legacy  # Only start with --profile legacy
+
+  instrument-b:
+    build: ./app/instruments/instrument-b
+    ports:
+      - "5004:5001"  # Fixed: Use different port to avoid conflict
+    environment:
+      <<: *backend_env
+    depends_on:
+      - backend
+    profiles:
+      - legacy  # Only start with --profile legacy
+
+  # NEW LAB AUTOMATION INSTRUMENTS
+  # Sample Preparation Station
+  sample-prep-station:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        COPY instruments/sample_prep_station.py /app/
+        RUN pip install flask requests
+        EXPOSE 5002
+        CMD ["python", "sample_prep_station.py"]
+    ports:
+      - "5002:5002"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # HPLC Analysis System
+  hplc-system:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        COPY instruments/hplc_system.py /app/
+        RUN pip install flask requests
+        EXPOSE 5003
+        CMD ["python", "hplc_system.py"]
+    ports:
+      - "5003:5003"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ADDITIONAL INSTRUMENT SERVICES (SIMULATED)
+  # These correspond to the database entries but are mock services
+  # In production, these would be actual instrument interfaces
+
+  # HPLC System A (Alternative HPLC system)
+  hplc-system-a:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        RUN pip install flask requests
+        RUN echo 'from flask import Flask, request, jsonify
+        import time
+        app = Flask(__name__)
+        @app.route("/status", methods=["GET"])
+        def status():
+            return jsonify({"status": "idle", "system": "HPLC System A", "available": True})
+        @app.route("/analyze", methods=["POST"])
+        def analyze():
+            return jsonify({"message": "HPLC System A analysis started", "estimated_time": 1800})
+        @app.route("/results", methods=["GET"])
+        def results():
+            return jsonify({"results": {"status": "completed", "purity": 99.1, "system": "HPLC-A"}})
+        if __name__ == "__main__":
+            app.run(host="0.0.0.0", port=5005)' > /app/hplc_a_mock.py
+        EXPOSE 5005
+        CMD ["python", "hplc_a_mock.py"]
+    ports:
+      - "5005:5005"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    profiles:
+      - extended  # Only start with --profile extended
+
+  # GC-MS System
+  gc-ms-system:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        RUN pip install flask requests
+        RUN echo 'from flask import Flask, request, jsonify
+        import time
+        app = Flask(__name__)
+        @app.route("/status", methods=["GET"])
+        def status():
+            return jsonify({"status": "idle", "system": "GC-MS", "available": True})
+        @app.route("/analyze", methods=["POST"])
+        def analyze():
+            return jsonify({"message": "GC-MS analysis started", "estimated_time": 2700})
+        @app.route("/results", methods=["GET"])
+        def results():
+            return jsonify({"results": {"status": "completed", "compounds_detected": 5, "system": "GC-MS"}})
+        if __name__ == "__main__":
+            app.run(host="0.0.0.0", port=5006)' > /app/gcms_mock.py
+        EXPOSE 5006
+        CMD ["python", "gcms_mock.py"]
+    ports:
+      - "5006:5006"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    profiles:
+      - extended  # Only start with --profile extended
+
+  # Liquid Handler System
+  liquid-handler:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        RUN pip install flask requests
+        RUN echo 'from flask import Flask, request, jsonify
+        import time
+        app = Flask(__name__)
+        @app.route("/status", methods=["GET"])
+        def status():
+            return jsonify({"status": "idle", "system": "Liquid Handler", "available": True, "tips_available": 96})
+        @app.route("/dispense", methods=["POST"])
+        def dispense():
+            return jsonify({"message": "Liquid handling started", "estimated_time": 300})
+        @app.route("/results", methods=["GET"])
+        def results():
+            return jsonify({"results": {"status": "completed", "volumes_dispensed": [10.0, 10.0, 10.0], "system": "Liquid Handler"}})
+        if __name__ == "__main__":
+            app.run(host="0.0.0.0", port=5007)' > /app/liquid_handler_mock.py
+        EXPOSE 5007
+        CMD ["python", "liquid_handler_mock.py"]
+    ports:
+      - "5007:5007"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    profiles:
+      - extended  # Only start with --profile extended
+
+volumes:
+  postgres_data:

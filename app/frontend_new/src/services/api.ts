@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Workflow, WorkflowCreate, Task, Service, TaskTemplate, TaskTemplateCreate } from '../types/workflow';
 import { validateCompleteWorkflow, sanitizeWorkflowData } from '../utils/validation';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -36,7 +36,7 @@ export const workflowAPI = {
    * This follows the backend flow where frontend polls for updates
    */
   async getAll(): Promise<Workflow[]> {
-    const response = await api.get('/api/workflows');
+    const response = await api.get('/api/workflows/');
     return response.data;
   },
 
@@ -67,7 +67,7 @@ export const workflowAPI = {
     const sanitizedWorkflow = sanitizeWorkflowData(workflow);
 
     // 3. Send POST request to backend (triggers database event)
-    const response = await api.post('/api/workflows', sanitizedWorkflow);
+    const response = await api.post('/api/workflows/', sanitizedWorkflow);
     
     console.log('[Workflow Created]', response.data);
     console.log('[Event-Driven Flow]', 'Database trigger should start workflow execution');
@@ -158,7 +158,7 @@ export const taskAPI = {
 
 export const serviceAPI = {
   async getAll(): Promise<Service[]> {
-    const response = await api.get('/api/services');
+    const response = await api.get('/api/services/');
     return response.data;
   },
 
@@ -168,7 +168,7 @@ export const serviceAPI = {
   },
 
   async create(service: Omit<Service, 'id'>): Promise<Service> {
-    const response = await api.post('/api/services', service);
+    const response = await api.post('/api/services/', service);
     return response.data;
   },
 
@@ -184,7 +184,7 @@ export const serviceAPI = {
 
 export const taskTemplateAPI = {
   async getAll(): Promise<TaskTemplate[]> {
-    const response = await api.get('/api/task-templates');
+    const response = await api.get('/api/task-templates/');
     return response.data;
   },
 
@@ -194,7 +194,7 @@ export const taskTemplateAPI = {
   },
 
   async create(template: TaskTemplateCreate): Promise<TaskTemplate> {
-    const response = await api.post('/api/task-templates', template);
+    const response = await api.post('/api/task-templates/', template);
     return response.data;
   },
 

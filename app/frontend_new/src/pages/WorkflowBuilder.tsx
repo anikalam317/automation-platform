@@ -145,6 +145,10 @@ export default function WorkflowBuilder() {
           category: nodeData.category,
           description: nodeData.description,
           parameters: nodeData.defaultParameters,
+          // Set serviceId based on node type
+          serviceId: nodeData.type === 'instrument' && nodeData.sourceData?.id 
+            ? nodeData.sourceData.id 
+            : undefined,
         },
       };
 
@@ -166,9 +170,11 @@ export default function WorkflowBuilder() {
       const workflowData: WorkflowCreate = {
         name: workflowName,
         author,
-        tasks: nodes.map((node) => ({
+        tasks: nodes.map((node, index) => ({
           name: node.data.label,
-          service_id: node.data.serviceId,
+          order_index: index,
+          // Ensure service_id is set for instruments, let backend auto-map for tasks
+          service_id: node.data.type === 'instrument' ? node.data.serviceId : undefined,
           service_parameters: node.data.parameters,
         })),
       };
@@ -199,11 +205,26 @@ export default function WorkflowBuilder() {
     }
 
     try {
-      await workflowAPI.update(currentWorkflow.id, { status: 'running' });
-      showSnackbar('Workflow execution started', 'success');
+      setLoading(true);
+      // Use the proper execution endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/workflows/${currentWorkflow.id}/execute-celery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start workflow execution');
+      }
+
+      const result = await response.json();
+      showSnackbar(`Workflow execution started: ${result.message}`, 'success');
       navigate(`/monitor/${currentWorkflow.id}`);
     } catch (error) {
       showSnackbar('Failed to start workflow execution', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 

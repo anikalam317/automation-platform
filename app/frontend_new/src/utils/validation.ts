@@ -106,10 +106,19 @@ export function sanitizeWorkflowData(workflow: WorkflowCreate): WorkflowCreate {
     ...workflow,
     name: workflow.name.trim(),
     author: workflow.author.trim(),
-    tasks: workflow.tasks.map((task) => ({
-      ...task,
-      name: task.name.trim(),
-      service_parameters: task.service_parameters || {}
-    }))
+    tasks: workflow.tasks.map((task) => {
+      // Create clean task object without spreading all properties
+      const cleanTask: any = {
+        name: task.name.trim(),
+        service_parameters: task.service_parameters || {}
+      };
+      
+      // Only include service_id if it's not null/undefined
+      if (task.service_id != null) {
+        cleanTask.service_id = task.service_id;
+      }
+      
+      return cleanTask;
+    })
   };
 }

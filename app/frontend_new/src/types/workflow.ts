@@ -33,6 +33,7 @@ export interface WorkflowCreate {
   author: string;
   tasks: Array<{
     name: string;
+    order_index?: number;
     service_id?: number;
     service_parameters?: Record<string, any>;
   }>;
