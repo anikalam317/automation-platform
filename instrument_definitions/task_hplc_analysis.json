@@ -1,0 +1,82 @@
+{
+  "id": "task-hplc-analysis",
+  "name": "HPLC Analysis",
+  "category": "analytical",
+  "description": "High-Performance Liquid Chromatography analysis for pharmaceutical purity and potency",
+  "workflow_position": "analytical",
+  "compatible_instruments": [
+    "hplc-system-01"
+  ],
+  "parameters": {
+    "sample_id": {
+      "type": "string", 
+      "label": "Sample ID",
+      "default": "auto-generated",
+      "required": true,
+      "validation": "^[A-Za-z0-9_-]+$"
+    },
+    "method": {
+      "type": "select",
+      "label": "Analysis Method",
+      "options": [
+        "USP_assay_method",
+        "related_substances",
+        "dissolution_profile", 
+        "stability_indicating"
+      ],
+      "default": "USP_assay_method",
+      "required": true
+    },
+    "injection_volume": {
+      "type": "number",
+      "label": "Injection Volume (µL)",
+      "min": 1.0,
+      "max": 100.0,
+      "default": 10.0,
+      "required": true
+    },
+    "runtime_minutes": {
+      "type": "number",
+      "label": "Runtime (minutes)",
+      "min": 5.0,
+      "max": 60.0,
+      "default": 20.0,
+      "required": true
+    },
+    "timeout": {
+      "type": "number",
+      "label": "Timeout (seconds)",
+      "min": 300,
+      "max": 3600,
+      "default": 1800,
+      "required": false
+    }
+  },
+  "quality_checks": [
+    "system_suitability",
+    "baseline_stability", 
+    "peak_resolution",
+    "retention_time_consistency"
+  ],
+  "outputs": [
+    "chromatogram",
+    "peak_data",
+    "purity_percent",
+    "system_suitability_results"
+  ],
+  "prerequisites": [
+    "sample_prepared",
+    "method_validated"
+  ],
+  "estimated_duration_seconds": 80,
+  "success_criteria": {
+    "system_suitability": "passed",
+    "resolution": ">= 2.0",
+    "theoretical_plates": ">= 5000",
+    "baseline_noise": "<= 2.0"
+  },
+  "status": "active",
+  "created_by": "system",
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}

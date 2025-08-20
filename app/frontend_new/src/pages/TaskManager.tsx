@@ -31,8 +31,7 @@ import {
   Assignment,
   Settings,
 } from '@mui/icons-material';
-import { taskTemplateAPI } from '../services/api';
-import { TaskTemplate, TaskTemplateCreate } from '../types/workflow';
+import { instrumentManagementAPI } from '../services/api';
 
 const categoryColors = {
   analytical: 'primary',
@@ -49,31 +48,37 @@ const categoryIcons = {
 };
 
 export default function TaskManager() {
-  const [templates, setTemplates] = useState<TaskTemplate[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   // Form state
-  const [formData, setFormData] = useState<TaskTemplateCreate>({
+  const [formData, setFormData] = useState<any>({
+    id: '',
     name: '',
     description: '',
     category: 'analytical',
-    type: '',
-    required_service_type: '',
-    default_parameters: {},
-    estimated_duration: 30,
-    enabled: true,
+    workflow_position: 'analytical',
+    compatible_instruments: [],
+    parameters: {},
+    quality_checks: [],
+    outputs: [],
+    prerequisites: [],
+    estimated_duration_seconds: 1800, // 30 minutes in seconds
+    success_criteria: {},
+    status: 'active',
+    created_by: 'user'
   });
 
   // Fetch task templates
   const fetchTemplates = useCallback(async () => {
     try {
-      const data = await taskTemplateAPI.getAll();
+      const data = await instrumentManagementAPI.getAllTasks();
       setTemplates(data);
       setError(null);
       if (loading) setLoading(false);
@@ -101,7 +106,11 @@ export default function TaskManager() {
 
   const handleCreateTemplate = async () => {
     try {
-      await taskTemplateAPI.create(formData);
+      // Generate ID from name
+      const taskId = formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const taskData = { ...formData, id: `task-${taskId}` };
+      
+      await instrumentManagementAPI.createTask(taskData);
       showSnackbar('Task template created successfully', 'success');
       setShowCreateDialog(false);
       resetForm();
@@ -115,7 +124,7 @@ export default function TaskManager() {
     if (!selectedTemplate) return;
 
     try {
-      await taskTemplateAPI.update(selectedTemplate.id, formData);
+      await instrumentManagementAPI.updateTask(selectedTemplate.id, formData);
       showSnackbar('Task template updated successfully', 'success');
       setShowEditDialog(false);
       resetForm();
@@ -130,7 +139,7 @@ export default function TaskManager() {
     if (!selectedTemplate) return;
 
     try {
-      await taskTemplateAPI.delete(selectedTemplate.id);
+      await instrumentManagementAPI.deleteTask(selectedTemplate.id);
       showSnackbar('Task template deleted successfully', 'success');
       handleMenuClose();
       fetchTemplates();
@@ -142,14 +151,20 @@ export default function TaskManager() {
   const openEditDialog = () => {
     if (!selectedTemplate) return;
     setFormData({
+      id: selectedTemplate.id,
       name: selectedTemplate.name,
       description: selectedTemplate.description,
       category: selectedTemplate.category,
-      type: selectedTemplate.type,
-      required_service_type: selectedTemplate.required_service_type || '',
-      default_parameters: selectedTemplate.default_parameters,
-      estimated_duration: selectedTemplate.estimated_duration,
-      enabled: selectedTemplate.enabled,
+      workflow_position: selectedTemplate.workflow_position || 'analytical',
+      compatible_instruments: selectedTemplate.compatible_instruments || [],
+      parameters: selectedTemplate.parameters || {},
+      quality_checks: selectedTemplate.quality_checks || [],
+      outputs: selectedTemplate.outputs || [],
+      prerequisites: selectedTemplate.prerequisites || [],
+      estimated_duration_seconds: selectedTemplate.estimated_duration_seconds || 1800,
+      success_criteria: selectedTemplate.success_criteria || {},
+      status: selectedTemplate.status || 'active',
+      created_by: selectedTemplate.created_by || 'user'
     });
     setShowEditDialog(true);
     handleMenuClose();
@@ -157,14 +172,20 @@ export default function TaskManager() {
 
   const resetForm = () => {
     setFormData({
+      id: '',
       name: '',
       description: '',
       category: 'analytical',
-      type: '',
-      required_service_type: '',
-      default_parameters: {},
-      estimated_duration: 30,
-      enabled: true,
+      workflow_position: 'analytical',
+      compatible_instruments: [],
+      parameters: {},
+      quality_checks: [],
+      outputs: [],
+      prerequisites: [],
+      estimated_duration_seconds: 1800,
+      success_criteria: {},
+      status: 'active',
+      created_by: 'user'
     });
   };
 
@@ -242,22 +263,20 @@ export default function TaskManager() {
                     color={categoryColors[template.category as keyof typeof categoryColors] || 'default'}
                     size="small"
                   />
-                  {template.required_service_type && (
-                    <Chip 
-                      label={template.required_service_type} 
-                      variant="outlined"
-                      size="small"
-                    />
-                  )}
+                  <Chip 
+                    label={template.workflow_position} 
+                    variant="outlined"
+                    size="small"
+                  />
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="caption" color="textSecondary">
-                    ~{template.estimated_duration} min
+                    ~{Math.round((template.estimated_duration_seconds || 0) / 60)} min
                   </Typography>
                   <Chip 
-                    label={template.enabled ? 'Enabled' : 'Disabled'} 
-                    color={template.enabled ? 'success' : 'default'}
+                    label={template.status === 'active' ? 'Active' : 'Inactive'} 
+                    color={template.status === 'active' ? 'success' : 'default'}
                     size="small"
                   />
                 </Box>
@@ -318,13 +337,18 @@ export default function TaskManager() {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                label="Type"
-                fullWidth
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                required
-              />
+              <FormControl fullWidth>
+                <InputLabel>Workflow Position</InputLabel>
+                <Select
+                  value={formData.workflow_position}
+                  onChange={(e) => setFormData({ ...formData, workflow_position: e.target.value })}
+                >
+                  <MenuItem value="initial">Initial</MenuItem>
+                  <MenuItem value="analytical">Analytical</MenuItem>
+                  <MenuItem value="preparative">Preparative</MenuItem>
+                  <MenuItem value="final">Final</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -352,20 +376,11 @@ export default function TaskManager() {
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
-                label="Required Service Type"
-                fullWidth
-                value={formData.required_service_type}
-                onChange={(e) => setFormData({ ...formData, required_service_type: e.target.value })}
-                placeholder="e.g. hplc, gc-ms, liquid-handler"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
                 label="Estimated Duration (minutes)"
                 type="number"
                 fullWidth
-                value={formData.estimated_duration}
-                onChange={(e) => setFormData({ ...formData, estimated_duration: parseInt(e.target.value) || 30 })}
+                value={Math.round(formData.estimated_duration_seconds / 60)}
+                onChange={(e) => setFormData({ ...formData, estimated_duration_seconds: (parseInt(e.target.value) || 30) * 60 })}
               />
             </Grid>
           </Grid>
@@ -375,7 +390,7 @@ export default function TaskManager() {
           <Button 
             onClick={handleCreateTemplate}
             variant="contained"
-            disabled={!formData.name || !formData.type}
+            disabled={!formData.name || !formData.description}
           >
             Create
           </Button>
@@ -397,13 +412,18 @@ export default function TaskManager() {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                label="Type"
-                fullWidth
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                required
-              />
+              <FormControl fullWidth>
+                <InputLabel>Workflow Position</InputLabel>
+                <Select
+                  value={formData.workflow_position}
+                  onChange={(e) => setFormData({ ...formData, workflow_position: e.target.value })}
+                >
+                  <MenuItem value="initial">Initial</MenuItem>
+                  <MenuItem value="analytical">Analytical</MenuItem>
+                  <MenuItem value="preparative">Preparative</MenuItem>
+                  <MenuItem value="final">Final</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -431,20 +451,11 @@ export default function TaskManager() {
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
-                label="Required Service Type"
-                fullWidth
-                value={formData.required_service_type}
-                onChange={(e) => setFormData({ ...formData, required_service_type: e.target.value })}
-                placeholder="e.g. hplc, gc-ms, liquid-handler"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
                 label="Estimated Duration (minutes)"
                 type="number"
                 fullWidth
-                value={formData.estimated_duration}
-                onChange={(e) => setFormData({ ...formData, estimated_duration: parseInt(e.target.value) || 30 })}
+                value={Math.round(formData.estimated_duration_seconds / 60)}
+                onChange={(e) => setFormData({ ...formData, estimated_duration_seconds: (parseInt(e.target.value) || 30) * 60 })}
               />
             </Grid>
           </Grid>
@@ -454,7 +465,7 @@ export default function TaskManager() {
           <Button 
             onClick={handleEditTemplate}
             variant="contained"
-            disabled={!formData.name || !formData.type}
+            disabled={!formData.name || !formData.description}
           >
             Update
           </Button>

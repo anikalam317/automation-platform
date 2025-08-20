@@ -36,8 +36,7 @@ import {
   Delete,
   MoreVert,
 } from '@mui/icons-material';
-import { serviceAPI } from '../services/api';
-import { Service } from '../types/workflow';
+import { instrumentManagementAPI } from '../services/api';
 
 const categoryIcons = {
   analytical: <Science />,
@@ -54,10 +53,10 @@ const typeColors = {
 } as const;
 
 export default function InstrumentManager() {
-  const [instruments, setInstruments] = useState<Service[]>([]);
+  const [instruments, setInstruments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedInstrument, setSelectedInstrument] = useState<Service | null>(null);
+  const [selectedInstrument, setSelectedInstrument] = useState<any | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -65,18 +64,34 @@ export default function InstrumentManager() {
 
   // Form state
   const [formData, setFormData] = useState({
+    id: '',
     name: '',
+    category: 'analytical',
+    manufacturer: '',
+    model: '',
     description: '',
-    type: '',
-    endpoint: '',
-    default_parameters: {},
-    enabled: true,
+    capabilities: [],
+    parameters: {},
+    connection: {
+      type: 'http',
+      simulation_endpoint: '',
+      real_endpoint: null,
+      status_endpoint: '/status',
+      execute_endpoint: '/execute',
+      results_endpoint: '/results',
+      reset_endpoint: '/reset'
+    },
+    validation: {},
+    outputs: {},
+    typical_runtime_seconds: 120,
+    status: 'active',
+    created_by: 'user'
   });
 
   // Fetch instruments
   const fetchInstruments = useCallback(async () => {
     try {
-      const data = await serviceAPI.getAll();
+      const data = await instrumentManagementAPI.getAllInstruments();
       setInstruments(data);
       setError(null);
       if (loading) setLoading(false);
@@ -104,7 +119,11 @@ export default function InstrumentManager() {
 
   const handleCreateInstrument = async () => {
     try {
-      await serviceAPI.create(formData);
+      // Generate ID from name
+      const instrumentId = formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const instrumentData = { ...formData, id: instrumentId };
+      
+      await instrumentManagementAPI.createInstrument(instrumentData);
       showSnackbar('Instrument created successfully', 'success');
       setShowCreateDialog(false);
       resetForm();
@@ -118,7 +137,7 @@ export default function InstrumentManager() {
     if (!selectedInstrument) return;
 
     try {
-      await serviceAPI.update(selectedInstrument.id, formData);
+      await instrumentManagementAPI.updateInstrument(selectedInstrument.id, formData);
       showSnackbar('Instrument updated successfully', 'success');
       setShowEditDialog(false);
       resetForm();
@@ -133,7 +152,7 @@ export default function InstrumentManager() {
     if (!selectedInstrument) return;
 
     try {
-      await serviceAPI.delete(selectedInstrument.id);
+      await instrumentManagementAPI.deleteInstrument(selectedInstrument.id);
       showSnackbar('Instrument deleted successfully', 'success');
       handleMenuClose();
       fetchInstruments();
@@ -145,12 +164,28 @@ export default function InstrumentManager() {
   const openEditDialog = () => {
     if (!selectedInstrument) return;
     setFormData({
+      id: selectedInstrument.id,
       name: selectedInstrument.name,
+      category: selectedInstrument.category || 'analytical',
+      manufacturer: selectedInstrument.manufacturer || '',
+      model: selectedInstrument.model || '',
       description: selectedInstrument.description,
-      type: selectedInstrument.type,
-      endpoint: selectedInstrument.endpoint,
-      default_parameters: selectedInstrument.default_parameters,
-      enabled: selectedInstrument.enabled,
+      capabilities: selectedInstrument.capabilities || [],
+      parameters: selectedInstrument.parameters || {},
+      connection: selectedInstrument.connection || {
+        type: 'http',
+        simulation_endpoint: '',
+        real_endpoint: null,
+        status_endpoint: '/status',
+        execute_endpoint: '/execute',
+        results_endpoint: '/results',
+        reset_endpoint: '/reset'
+      },
+      validation: selectedInstrument.validation || {},
+      outputs: selectedInstrument.outputs || {},
+      typical_runtime_seconds: selectedInstrument.typical_runtime_seconds || 120,
+      status: selectedInstrument.status || 'active',
+      created_by: selectedInstrument.created_by || 'user'
     });
     setShowEditDialog(true);
     handleMenuClose();
@@ -158,12 +193,28 @@ export default function InstrumentManager() {
 
   const resetForm = () => {
     setFormData({
+      id: '',
       name: '',
+      category: 'analytical',
+      manufacturer: '',
+      model: '',
       description: '',
-      type: '',
-      endpoint: '',
-      default_parameters: {},
-      enabled: true,
+      capabilities: [],
+      parameters: {},
+      connection: {
+        type: 'http',
+        simulation_endpoint: '',
+        real_endpoint: null,
+        status_endpoint: '/status',
+        execute_endpoint: '/execute',
+        results_endpoint: '/results',
+        reset_endpoint: '/reset'
+      },
+      validation: {},
+      outputs: {},
+      typical_runtime_seconds: 120,
+      status: 'active',
+      created_by: 'user'
     });
   };
 
@@ -237,19 +288,19 @@ export default function InstrumentManager() {
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <Chip 
-                    label={instrument.type} 
-                    color={typeColors[instrument.type as keyof typeof typeColors] || 'default'}
+                    label={instrument.category} 
+                    color={typeColors[instrument.category as keyof typeof typeColors] || 'default'}
                     size="small"
                   />
                   <Chip 
-                    label={instrument.enabled ? 'Enabled' : 'Disabled'} 
-                    color={instrument.enabled ? 'success' : 'default'}
+                    label={instrument.status === 'active' ? 'Active' : 'Inactive'} 
+                    color={instrument.status === 'active' ? 'success' : 'default'}
                     size="small"
                   />
                 </Box>
 
                 <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
-                  Endpoint: {instrument.endpoint}
+                  Runtime: ~{Math.round((instrument.typical_runtime_seconds || 0) / 60)} min
                 </Typography>
               </CardContent>
             </Card>
@@ -308,14 +359,18 @@ export default function InstrumentManager() {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                label="Type"
-                fullWidth
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                required
-                placeholder="e.g. hplc, gc-ms, liquid-handler"
-              />
+              <FormControl fullWidth>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                >
+                  <MenuItem value="analytical">Analytical</MenuItem>
+                  <MenuItem value="preparative">Preparative</MenuItem>
+                  <MenuItem value="storage">Storage</MenuItem>
+                  <MenuItem value="processing">Processing</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -327,26 +382,48 @@ export default function InstrumentManager() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                label="Endpoint URL"
+                label="Manufacturer"
                 fullWidth
-                value={formData.endpoint}
-                onChange={(e) => setFormData({ ...formData, endpoint: e.target.value })}
-                required
-                placeholder="http://localhost:8001/instrument"
+                value={formData.manufacturer}
+                onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                placeholder="e.g. Agilent, Waters, Thermo"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Model"
+                fullWidth
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                placeholder="e.g. 1260 Infinity II"
               />
             </Grid>
             <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.enabled}
-                    onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-                  />
-                }
-                label="Enabled"
+              <TextField
+                label="Simulation Endpoint"
+                fullWidth
+                value={formData.connection.simulation_endpoint}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  connection: { ...formData.connection, simulation_endpoint: e.target.value }
+                })}
+                required
+                placeholder="e.g. http://instrument-service:5001"
               />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
           </Grid>
         </DialogContent>
@@ -355,7 +432,7 @@ export default function InstrumentManager() {
           <Button 
             onClick={handleCreateInstrument}
             variant="contained"
-            disabled={!formData.name || !formData.type || !formData.endpoint}
+            disabled={!formData.name || !formData.connection.simulation_endpoint}
           >
             Add Instrument
           </Button>
@@ -405,15 +482,16 @@ export default function InstrumentManager() {
               />
             </Grid>
             <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.enabled}
-                    onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-                  />
-                }
-                label="Enabled"
-              />
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
           </Grid>
         </DialogContent>
@@ -422,7 +500,7 @@ export default function InstrumentManager() {
           <Button 
             onClick={handleEditInstrument}
             variant="contained"
-            disabled={!formData.name || !formData.type || !formData.endpoint}
+            disabled={!formData.name || !formData.connection.simulation_endpoint}
           >
             Update Instrument
           </Button>

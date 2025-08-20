@@ -134,6 +134,21 @@ export default function WorkflowBuilder() {
         y: event.clientY,
       });
 
+      // Map instrument IDs to database service IDs for backwards compatibility
+      const instrumentToServiceMapping: Record<string, number> = {
+        'sample-prep-01': 1,
+        'hplc-system-01': 2,
+        'gcms-system-01': 6,
+        'liquid-handler-01': 7,
+      };
+
+      let serviceId: number | undefined = undefined;
+      
+      if (nodeData.type === 'instrument' && nodeData.sourceData?.id) {
+        serviceId = instrumentToServiceMapping[nodeData.sourceData.id];
+        console.log(`Mapped instrument ${nodeData.sourceData.id} to service_id ${serviceId}`);
+      }
+
       const newNode: Node = {
         id: getNodeId(),
         type: 'workflowNode',
@@ -145,10 +160,7 @@ export default function WorkflowBuilder() {
           category: nodeData.category,
           description: nodeData.description,
           parameters: nodeData.defaultParameters,
-          // Set serviceId based on node type
-          serviceId: nodeData.type === 'instrument' && nodeData.sourceData?.id 
-            ? nodeData.sourceData.id 
-            : undefined,
+          serviceId: serviceId,
         },
       };
 
@@ -167,17 +179,41 @@ export default function WorkflowBuilder() {
     try {
       setLoading(true);
       
+      // Validate basic requirements
+      if (!workflowName.trim()) {
+        showSnackbar('Workflow name is required', 'error');
+        return;
+      }
+      
+      if (!author.trim()) {
+        showSnackbar('Author name is required', 'error');
+        return;
+      }
+      
+      if (nodes.length === 0) {
+        showSnackbar('At least one task is required', 'error');
+        return;
+      }
+      
       const workflowData: WorkflowCreate = {
-        name: workflowName,
-        author,
-        tasks: nodes.map((node, index) => ({
-          name: node.data.label,
-          order_index: index,
-          // Ensure service_id is set for instruments, let backend auto-map for tasks
-          service_id: node.data.type === 'instrument' ? node.data.serviceId : undefined,
-          service_parameters: node.data.parameters,
-        })),
+        name: workflowName.trim(),
+        author: author.trim(),
+        tasks: nodes.map((node, index) => {
+          const task: any = {
+            name: node.data.label.trim(),
+            service_parameters: node.data.parameters || {}
+          };
+          
+          // Only include service_id if it's a valid number (not null/undefined)
+          if (typeof node.data.serviceId === 'number' && node.data.serviceId > 0) {
+            task.service_id = node.data.serviceId;
+          }
+          
+          return task;
+        }),
       };
+
+      console.log('Saving workflow with data:', JSON.stringify(workflowData, null, 2));
 
       if (id) {
         // Update existing workflow
@@ -191,8 +227,10 @@ export default function WorkflowBuilder() {
       }
       
       showSnackbar('Workflow saved successfully', 'success');
-    } catch (error) {
-      showSnackbar('Failed to save workflow', 'error');
+    } catch (error: any) {
+      console.error('Workflow save error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to save workflow';
+      showSnackbar(errorMessage, 'error');
     } finally {
       setLoading(false);
     }

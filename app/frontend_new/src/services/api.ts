@@ -215,4 +215,71 @@ export const aiAPI = {
   },
 };
 
+// New Instrument Management API
+export const instrumentManagementAPI = {
+  // Instruments
+  async getAllInstruments(): Promise<any[]> {
+    const response = await api.get('/api/instrument-management/instruments');
+    return response.data;
+  },
+
+  async getInstrument(id: string): Promise<any> {
+    const response = await api.get(`/api/instrument-management/instruments/${id}`);
+    return response.data;
+  },
+
+  async createInstrument(instrument: any): Promise<any> {
+    const response = await api.post('/api/instrument-management/instruments', instrument);
+    return response.data;
+  },
+
+  async updateInstrument(id: string, instrument: any): Promise<any> {
+    const response = await api.put(`/api/instrument-management/instruments/${id}`, instrument);
+    return response.data;
+  },
+
+  async deleteInstrument(id: string): Promise<any> {
+    const response = await api.delete(`/api/instrument-management/instruments/${id}`);
+    return response.data;
+  },
+
+  // Tasks
+  async getAllTasks(): Promise<any[]> {
+    const response = await api.get('/api/instrument-management/tasks');
+    return response.data;
+  },
+
+  async getTask(id: string): Promise<any> {
+    const response = await api.get(`/api/instrument-management/tasks/${id}`);
+    return response.data;
+  },
+
+  async createTask(task: any): Promise<any> {
+    const response = await api.post('/api/instrument-management/tasks', task);
+    return response.data;
+  },
+
+  async updateTask(id: string, task: any): Promise<any> {
+    const response = await api.put(`/api/instrument-management/tasks/${id}`, task);
+    return response.data;
+  },
+
+  async deleteTask(id: string): Promise<any> {
+    const response = await api.delete(`/api/instrument-management/tasks/${id}`);
+    return response.data;
+  },
+
+  // Node palette data
+  async getNodePaletteData(): Promise<{ instruments: any[]; tasks: any[] }> {
+    const response = await api.get('/api/instrument-management/node-palette');
+    return response.data;
+  },
+
+  // Sync to database
+  async syncToDatabase(): Promise<any> {
+    const response = await api.post('/api/instrument-management/sync-to-database');
+    return response.data;
+  }
+};
+
 export default api;

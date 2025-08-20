@@ -1,0 +1,91 @@
+{
+  "id": "liquid-handler-01",
+  "name": "Automated Liquid Handler",
+  "category": "preparative", 
+  "manufacturer": "Tecan",
+  "model": "Freedom EVO 200",
+  "description": "Automated liquid handling system for precise pipetting and sample preparation",
+  "capabilities": [
+    "Automated pipetting",
+    "Serial dilutions",
+    "Plate reformatting",
+    "Sample transfers",
+    "Reagent dispensing"
+  ],
+  "parameters": {
+    "operation_type": {
+      "type": "select",
+      "label": "Operation Type",
+      "options": [
+        "serial_dilution",
+        "plate_reformat",
+        "sample_transfer",
+        "reagent_dispensing",
+        "custom_protocol"
+      ],
+      "default": "sample_transfer",
+      "required": true
+    },
+    "source_volume": {
+      "type": "number",
+      "label": "Source Volume (µL)",
+      "min": 1.0,
+      "max": 1000.0,
+      "default": 100.0,
+      "step": 1.0,
+      "required": true
+    },
+    "transfer_volume": {
+      "type": "number",
+      "label": "Transfer Volume (µL)",
+      "min": 0.5,
+      "max": 1000.0,
+      "default": 50.0,
+      "step": 0.5,
+      "required": true
+    },
+    "dilution_factor": {
+      "type": "number",
+      "label": "Dilution Factor (for serial dilutions)",
+      "min": 1.1,
+      "max": 100.0,
+      "default": 2.0,
+      "step": 0.1,
+      "required": false
+    },
+    "number_of_replicates": {
+      "type": "number",
+      "label": "Number of Replicates",
+      "min": 1,
+      "max": 8,
+      "default": 3,
+      "step": 1,
+      "required": false
+    }
+  },
+  "connection": {
+    "type": "http",
+    "simulation_endpoint": "http://liquid-handler:5005",
+    "real_endpoint": null,
+    "status_endpoint": "/status",
+    "execute_endpoint": "/execute",
+    "results_endpoint": "/results", 
+    "reset_endpoint": "/reset"
+  },
+  "validation": {
+    "tip_quality_check": true,
+    "volume_accuracy_check": true,
+    "maintenance_schedule": "daily"
+  },
+  "outputs": {
+    "transfer_accuracy": true,
+    "volume_precision": true,
+    "operation_log": true,
+    "quality_metrics": true
+  },
+  "typical_runtime_seconds": 45,
+  "status": "active",
+  "created_by": "system",
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}

@@ -56,6 +56,39 @@ const serviceTypeIcons = {
   default: <Memory />
 };
 
+// Utility function to extract default values from parameter schema
+const extractDefaultParameters = (parameters: Record<string, any>) => {
+  const defaultValues: Record<string, any> = {};
+  
+  for (const [key, param] of Object.entries(parameters)) {
+    if (param && typeof param === 'object' && param.default !== undefined) {
+      defaultValues[key] = param.default;
+    } else if (param && typeof param === 'object' && param.type) {
+      // Handle different parameter types with sensible defaults
+      switch (param.type) {
+        case 'string':
+          defaultValues[key] = param.default || '';
+          break;
+        case 'number':
+          defaultValues[key] = param.default || param.min || 0;
+          break;
+        case 'boolean':
+          defaultValues[key] = param.default || false;
+          break;
+        case 'select':
+          defaultValues[key] = param.default || (param.options && param.options[0]) || '';
+          break;
+        default:
+          if (param.default !== undefined) {
+            defaultValues[key] = param.default;
+          }
+      }
+    }
+  }
+  
+  return defaultValues;
+};
+
 
 interface NodePaletteProps {
   onDragStart: (event: React.DragEvent, nodeTemplate: NodeTemplate) => void;
@@ -70,10 +103,50 @@ export default function NodePalette({ onDragStart }: NodePaletteProps) {
   // Fetch data function
   const fetchData = useCallback(async () => {
     try {
-      const [templates, services] = await Promise.all([
-        taskTemplateAPI.getAll(),
-        serviceAPI.getAll()
-      ]);
+      // Try to get data from the new instrument management API first
+      let templates = taskTemplates;
+      let services = instruments;
+      
+      try {
+        // Fetch from new instrument management API
+        const paletteResponse = await fetch('/api/instrument-management/node-palette');
+        if (paletteResponse.ok) {
+          const paletteData = await paletteResponse.json();
+          
+          // Convert new API data to existing format for backwards compatibility
+          if (paletteData.tasks) {
+            templates = paletteData.tasks.map((task: any) => ({
+              id: task.id,
+              name: task.name,
+              description: task.description,
+              category: task.category,
+              default_parameters: extractDefaultParameters(task.parameters || {}),
+              estimated_duration: Math.round(task.estimated_duration / 60) // Convert to minutes
+            }));
+          }
+          
+          if (paletteData.instruments) {
+            services = paletteData.instruments.map((instrument: any) => ({
+              id: instrument.id,
+              name: instrument.name,
+              description: instrument.description,
+              type: instrument.category,
+              default_parameters: extractDefaultParameters(instrument.parameters || {})
+            }));
+          }
+        }
+      } catch (paletteError) {
+        console.warn('New instrument management API not available, falling back to legacy APIs');
+        
+        // Fallback to existing APIs
+        const [legacyTemplates, legacyServices] = await Promise.all([
+          taskTemplateAPI.getAll(),
+          serviceAPI.getAll()
+        ]);
+        templates = legacyTemplates;
+        services = legacyServices;
+      }
+      
       setTaskTemplates(templates);
       setInstruments(services);
       setError(null);

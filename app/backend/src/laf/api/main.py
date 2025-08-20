@@ -7,11 +7,12 @@ from ..core.config import settings
 from ..core.database import init_db
 from .v1 import workflows, tasks, webhooks
 try:
-    from .v1 import services, ai, task_templates
+    from .v1 import services, ai, task_templates, instrument_management
 except ImportError:
     services = None
     ai = None
     task_templates = None
+    instrument_management = None
 from ..services.handlers.notification_listeners import NotificationListener
 
 
@@ -90,3 +91,5 @@ if ai:
     app.include_router(ai.router)
 if task_templates:
     app.include_router(task_templates.router)
+if instrument_management:
+    app.include_router(instrument_management.router)

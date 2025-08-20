@@ -45,7 +45,8 @@
       "Bash(TASKKILL /F /PID 17804)",
       "Bash(powershell:*)",
       "WebFetch(domain:localhost)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

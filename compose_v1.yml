@@ -1,5 +1,18 @@
 # Laboratory Automation Framework - Docker Compose Configuration
-# Updated: 2025-08-19
+# Updated: 2025-08-20
+# 
+# ARCHITECTURE:
+# - Instruments and tasks are defined in JSON files under instrument_definitions/
+# - Use setup_lab.py to sync definitions to database and check connections
+# - Backend automatically loads instrument definitions on startup
+# - NodePalette dynamically loads available instruments and tasks from database
+# 
+# RECENT FIXES:
+# - Added instrument_definitions volume mapping for backend/worker access to instrument configs
+# - Fixed HPLC and Sample Preparation parameter injection (sample_id auto-generation)
+# - Enhanced NodePalette parameter extraction from instrument definitions
+# - Resolved Builder tab workflow creation issues with drag-and-drop instruments
+# - Implemented dynamic service-to-instrument mapping system
 # 
 # PORT ALLOCATION:
 # - 3005: Frontend (React/Vite/TypeScript)
@@ -15,10 +28,23 @@
 # - 5006: GC-MS System (extended profile)
 # - 5007: Liquid Handler (extended profile)
 #
+# INSTRUMENT DEFINITIONS:
+# Instruments are loaded from JSON files in instrument_definitions/:
+# - hplc_system.json -> HPLC Analysis System (port 5003)
+# - sample_prep_station.json -> Sample Preparation Station (port 5002)
+# - gc_ms_system.json -> GC-MS System (port 5006, extended profile)
+# - liquid_handler.json -> Liquid Handler (port 5007, extended profile)
+# - task_*.json -> Task templates for workflow building
+#
 # PROFILES:
 # - default: Core services (frontend, backend, db, redis, worker, sample-prep, hplc)
 # - legacy: Include old instrument-a and instrument-b services
 # - extended: Include additional mock instrument services (HPLC-A, GC-MS, Liquid Handler)
+#
+# SETUP PROCESS:
+# 1. Start services: docker compose -f compose_v1.yml up -d
+# 2. Initialize lab: python setup_lab.py
+# 3. Access frontend: http://localhost:3005
 #
 # USAGE:
 # - Basic: docker compose -f compose_v1.yml up -d
@@ -62,6 +88,7 @@ services:
     command: ["bash", "/app/wait-for-it.sh", "db:5432", "--", "poetry", "run", "uvicorn", "laf.api.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
     volumes:
       - ./app/backend:/app
+      - ./instrument_definitions:/app/instrument_definitions
     ports:
       - "8001:8001"
     environment:
@@ -76,6 +103,7 @@ services:
     command: ["bash", "/app/wait-for-it.sh", "redis:6379", "--", "poetry", "run", "celery", "-A", "laf.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     volumes:
       - ./app/backend:/app
+      - ./instrument_definitions:/app/instrument_definitions
     environment:
       <<: [*backend_env, *database_env, *celery_env, *instruments_env]
     depends_on:
@@ -151,7 +179,7 @@ services:
       dockerfile_inline: |
         FROM python:3.9-slim
         WORKDIR /app
-        COPY instruments/sample_prep_station.py /app/
+        COPY simulation/sample_prep_station.py /app/
         RUN pip install flask requests
         EXPOSE 5002
         CMD ["python", "sample_prep_station.py"]
@@ -168,7 +196,7 @@ services:
       dockerfile_inline: |
         FROM python:3.9-slim
         WORKDIR /app
-        COPY instruments/hplc_system.py /app/
+        COPY simulation/hplc_system.py /app/
         RUN pip install flask requests
         EXPOSE 5003
         CMD ["python", "hplc_system.py"]

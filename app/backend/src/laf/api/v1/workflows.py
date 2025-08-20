@@ -71,6 +71,15 @@ def create_workflow(workflow: WorkflowCreate, db: Session = Depends(get_db)):
                 "timeout": 300
             }
         },
+        "HPLC Analysis": {
+            "service_id": 2,  # HPLC Analysis System
+            "default_params": {
+                "method": "USP_assay_method",
+                "injection_volume": 10.0,
+                "runtime_minutes": 20.0,
+                "timeout": 1800
+            }
+        },
         "HPLC Purity Analysis": {
             "service_id": 2,  # HPLC Analysis System
             "default_params": {
@@ -161,6 +170,11 @@ def create_workflow(workflow: WorkflowCreate, db: Session = Depends(get_db)):
                     params["sample_id"] = f"WF{db_workflow.id}_T{i+1}_{workflow.name}".replace(" ", "_")
                     service_parameters = params
                     print(f"DEBUG: Applied default parameters for '{task_name}': {service_parameters}")
+            else:
+                # If frontend provides service_parameters, ensure sample_id is added for lab instrument tasks
+                if service_id in [1, 2] and "sample_id" not in service_parameters:
+                    service_parameters["sample_id"] = f"WF{db_workflow.id}_T{i+1}_{workflow.name}".replace(" ", "_")
+                    print(f"DEBUG: Added sample_id to frontend parameters: {service_parameters}")
         
         db_task = Task(
             name=task_name,

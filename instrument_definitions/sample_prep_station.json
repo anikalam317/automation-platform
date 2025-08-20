@@ -1,0 +1,82 @@
+{
+  "id": "sample-prep-01",
+  "name": "Sample Preparation Station",
+  "category": "preparative",
+  "manufacturer": "Hamilton",
+  "model": "Microlab STAR",
+  "description": "Automated sample preparation station for dilution, pH adjustment, and filtration",
+  "capabilities": [
+    "Sample dilution",
+    "pH adjustment",
+    "Solution filtration",
+    "Volume transfers",
+    "Quality control checks"
+  ],
+  "parameters": {
+    "volume": {
+      "type": "number",
+      "label": "Sample Volume (mL)",
+      "min": 1.0,
+      "max": 50.0,
+      "default": 10.0,
+      "step": 0.5,
+      "required": true
+    },
+    "dilution_factor": {
+      "type": "number",
+      "label": "Dilution Factor",
+      "min": 1.0,
+      "max": 10.0,
+      "default": 2.0,
+      "step": 0.5,
+      "required": true
+    },
+    "target_ph": {
+      "type": "number",
+      "label": "Target pH",
+      "min": 2.0,
+      "max": 12.0,
+      "default": 7.0,
+      "step": 0.1,
+      "required": true
+    },
+    "filtration_required": {
+      "type": "boolean",
+      "label": "Filtration Required",
+      "default": true,
+      "required": false
+    },
+    "filter_size": {
+      "type": "select",
+      "label": "Filter Size (µm)",
+      "options": ["0.22", "0.45", "1.0", "5.0"],
+      "default": "0.45",
+      "required": false
+    }
+  },
+  "connection": {
+    "type": "http",
+    "simulation_endpoint": "http://sample-prep-station:5002",
+    "real_endpoint": null,
+    "status_endpoint": "/status",
+    "execute_endpoint": "/prepare",
+    "results_endpoint": "/results",
+    "reset_endpoint": "/reset"
+  },
+  "validation": {
+    "volume_accuracy_check": true,
+    "ph_calibration_required": true,
+    "maintenance_schedule": "weekly"
+  },
+  "outputs": {
+    "actual_volume": true,
+    "actual_ph": true,
+    "recovery_percent": true,
+    "quality_check_status": true
+  },
+  "typical_runtime_seconds": 65,
+  "status": "active",
+  "created_by": "system",
+  "created_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-01T00:00:00Z"
+}
