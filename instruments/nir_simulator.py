@@ -374,4 +374,4 @@ if __name__ == '__main__':
     print("  POST /reference - Collect reference")
     print("  GET  /models - Calibration models")
     
-    app.run(host='0.0.0.0', port=5013, debug=True)
+    app.run(host='0.0.0.0', port=5013, debug=False)

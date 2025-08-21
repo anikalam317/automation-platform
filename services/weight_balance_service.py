@@ -16,7 +16,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-WEIGHT_BALANCE_ENDPOINT = "http://localhost:5011"
+WEIGHT_BALANCE_ENDPOINT = "http://weight-balance:5011"
 
 @app.route('/status', methods=['GET'])
 def get_status():
@@ -129,4 +129,4 @@ def home():
 if __name__ == '__main__':
     print("Starting Weight Balance Service on port 6001...")
     print(f"Will coordinate with weight balance at: {WEIGHT_BALANCE_ENDPOINT}")
-    app.run(host='127.0.0.1', port=6001, debug=False)
+    app.run(host='0.0.0.0', port=6001, debug=False)

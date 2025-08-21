@@ -13,6 +13,10 @@
 # - Enhanced NodePalette parameter extraction from instrument definitions
 # - Resolved Builder tab workflow creation issues with drag-and-drop instruments
 # - Implemented dynamic service-to-instrument mapping system
+# - Added Weight Balance instrument and service integration
+# - Implemented plugin-based architecture for scalable task/service/instrument management
+# - Fixed sequential workflow execution with proper task chaining
+# - Added support for data extraction between workflow tasks
 # 
 # PORT ALLOCATION:
 # - 3005: Frontend (React/Vite/TypeScript)
@@ -27,6 +31,12 @@
 # - 5005: HPLC System A (extended profile)
 # - 5006: GC-MS System (extended profile)
 # - 5007: Liquid Handler (extended profile)
+# - 5011: Weight Balance Instrument
+# - 5012: Mixer Instrument
+# - 5013: NIR Instrument
+# - 6001: Weight Balance Service
+# - 6002: Mixer Service
+# - 6003: NIR Service
 #
 # INSTRUMENT DEFINITIONS:
 # Instruments are loaded from JSON files in instrument_definitions/:
@@ -66,6 +76,12 @@ x-common:
     HPLC_A_URL: "http://hplc-system-a:5005"
     GCMS_URL: "http://gc-ms-system:5006"
     LIQUID_HANDLER_URL: "http://liquid-handler:5007"
+    WEIGHT_BALANCE_URL: "http://weight-balance:5011"
+    MIXER_URL: "http://mixer:5012"
+    NIR_URL: "http://nir:5013"
+    WEIGHT_BALANCE_SERVICE_URL: "http://weight-balance-service:6001"
+    MIXER_SERVICE_URL: "http://mixer-service:6002"
+    NIR_SERVICE_URL: "http://nir-service:6003"
 
 services:
   db:
@@ -137,6 +153,7 @@ services:
       - redis
       - sample-prep-station
       - hplc-system
+      - weight-balance-service
       - data_init
 
   # Frontend (New React + TypeScript + Material-UI)
@@ -207,7 +224,7 @@ services:
         FROM python:3.9-slim
         WORKDIR /app
         COPY simulation/sample_prep_station.py /app/
-        RUN pip install flask requests
+        RUN pip install flask requests flask-cors numpy
         EXPOSE 5002
         CMD ["python", "sample_prep_station.py"]
     ports:
@@ -224,7 +241,7 @@ services:
         FROM python:3.9-slim
         WORKDIR /app
         COPY simulation/hplc_system.py /app/
-        RUN pip install flask requests
+        RUN pip install flask requests flask-cors numpy
         EXPOSE 5003
         CMD ["python", "hplc_system.py"]
     ports:
@@ -244,7 +261,7 @@ services:
       dockerfile_inline: |
         FROM python:3.9-slim
         WORKDIR /app
-        RUN pip install flask requests
+        RUN pip install flask requests flask-cors numpy
         RUN echo 'from flask import Flask, request, jsonify
         import time
         app = Flask(__name__)
@@ -276,7 +293,7 @@ services:
       dockerfile_inline: |
         FROM python:3.9-slim
         WORKDIR /app
-        RUN pip install flask requests
+        RUN pip install flask requests flask-cors numpy
         RUN echo 'from flask import Flask, request, jsonify
         import time
         app = Flask(__name__)
@@ -308,7 +325,7 @@ services:
       dockerfile_inline: |
         FROM python:3.9-slim
         WORKDIR /app
-        RUN pip install flask requests
+        RUN pip install flask requests flask-cors numpy
         RUN echo 'from flask import Flask, request, jsonify
         import time
         app = Flask(__name__)
@@ -332,6 +349,77 @@ services:
     restart: unless-stopped
     profiles:
       - extended  # Only start with --profile extended
+
+  # NEW INSTRUMENT SIMULATORS (Current Architecture)
+  # Weight Balance Instrument
+  weight-balance:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        COPY instruments/weight_balance_simulator.py /app/
+        RUN pip install flask requests flask-cors numpy
+        EXPOSE 5011
+        CMD ["python", "weight_balance_simulator.py"]
+    ports:
+      - "5011:5011"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Mixer Instrument
+  mixer:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        COPY instruments/mixer_simulator.py /app/
+        RUN pip install flask requests flask-cors numpy
+        EXPOSE 5012
+        CMD ["python", "mixer_simulator.py"]
+    ports:
+      - "5012:5012"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # NIR Instrument
+  nir:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        COPY instruments/nir_simulator.py /app/
+        RUN pip install flask requests flask-cors numpy
+        EXPOSE 5013
+        CMD ["python", "nir_simulator.py"]
+    ports:
+      - "5013:5013"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # SERVICE COORDINATORS
+  # Weight Balance Service
+  weight-balance-service:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+        COPY services/weight_balance_service.py /app/
+        RUN pip install flask requests flask-cors numpy
+        EXPOSE 6001
+        CMD ["python", "weight_balance_service.py"]
+    ports:
+      - "6001:6001"
+    depends_on:
+      - backend
+      - weight-balance
+    restart: unless-stopped
 
 volumes:
   postgres_data:
