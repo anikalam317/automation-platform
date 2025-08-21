@@ -1,0 +1,25 @@
+{
+  "name": "Run NIR",
+  "category": "Spectroscopy",
+  "type": "spectroscopy_service",
+  "description": "Execute NIR spectroscopic analysis with data processing",
+  "endpoint": "http://localhost:6004",
+  "required_instruments": [
+    "NIR"
+  ],
+  "capabilities": [
+    "spectroscopy",
+    "nir",
+    "chemometrics"
+  ],
+  "parameters": {
+    "measurement_mode": "reflectance",
+    "preprocessing": [
+      "snv",
+      "derivative"
+    ],
+    "model_application": true,
+    "real_time_analysis": true
+  },
+  "execution_script": "services/run_nir.py"
+}

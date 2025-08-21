@@ -1,0 +1,63 @@
+{
+  "id": "mixer-pat",
+  "name": "Mixer",
+  "category": "Equipment",
+  "type": "overhead_stirrer",
+  "manufacturer": "IKA",
+  "model": "RW20",
+  "description": "Overhead stirrer for sample mixing and homogenization",
+  "endpoint": "http://localhost:5012",
+  "status_endpoint": "http://localhost:5012/status",
+  "status": "active",
+  "typical_runtime_seconds": 600,
+  "capabilities": [
+    "mixing",
+    "motor_control",
+    "temperature_control"
+  ],
+  "specifications": {
+    "speed_range": "10-2000 rpm",
+    "torque": "50 Ncm",
+    "viscosity_max": "10000 mPas",
+    "temperature_range": "-10 to 300°C"
+  },
+  "parameters": {
+    "sample_id": {
+      "type": "string",
+      "label": "Sample ID",
+      "default": "auto-generated",
+      "required": true
+    },
+    "speed": {
+      "type": "number",
+      "label": "Mixing Speed (RPM)",
+      "min": 10,
+      "max": 2000,
+      "default": 500,
+      "required": true
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Target Temperature (°C)",
+      "min": -10,
+      "max": 300,
+      "default": 25,
+      "required": false
+    },
+    "duration": {
+      "type": "number",
+      "label": "Mixing Duration (seconds)",
+      "min": 10,
+      "max": 3600,
+      "default": 600,
+      "required": true
+    },
+    "profile": {
+      "type": "select",
+      "label": "Mixing Profile",
+      "options": ["gentle", "standard", "vigorous"],
+      "default": "standard",
+      "required": false
+    }
+  }
+}

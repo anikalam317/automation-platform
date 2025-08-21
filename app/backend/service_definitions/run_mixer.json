@@ -1,0 +1,22 @@
+{
+  "name": "Run Mixer",
+  "category": "Operation",
+  "type": "mixing_service",
+  "description": "Execute mixing operation with precise control",
+  "endpoint": "http://localhost:6002",
+  "required_instruments": [
+    "Mixer"
+  ],
+  "capabilities": [
+    "mixing",
+    "motor_control",
+    "process_monitoring"
+  ],
+  "parameters": {
+    "mixing_profile": "standard",
+    "speed_ramp": true,
+    "monitoring_interval": 10,
+    "safety_limits": true
+  },
+  "execution_script": "services/run_mixer.py"
+}

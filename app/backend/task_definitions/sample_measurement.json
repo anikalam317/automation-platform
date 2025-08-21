@@ -1,0 +1,29 @@
+{
+  "name": "Sample Measurement",
+  "category": "Preparation",
+  "description": "Measure sample weight and properties",
+  "required_capabilities": [
+    "balance",
+    "measurement"
+  ],
+  "optional_capabilities": [
+    "precision_weighing"
+  ],
+  "estimated_duration_seconds": 300,
+  "parameters": {
+    "sample_id": {
+      "type": "string",
+      "required": true
+    },
+    "target_weight": {
+      "type": "number",
+      "default": 1.0,
+      "unit": "g"
+    },
+    "precision": {
+      "type": "number",
+      "default": 0.001,
+      "unit": "g"
+    }
+  }
+}

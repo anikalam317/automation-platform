@@ -15,9 +15,18 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  FormControlLabel,
+  Switch,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+  Divider
 } from '@mui/material';
-import { Settings, PlayArrow, CheckCircle, Error } from '@mui/icons-material';
+import { Settings, PlayArrow, CheckCircle, Error, PersonAdd, DoneAll } from '@mui/icons-material';
 import { NodeData } from '../types/workflow';
 
 const statusColors = {
@@ -27,6 +36,7 @@ const statusColors = {
   failed: '#f44336',
   paused: '#ff9800',
   stopped: '#f44336',
+  awaiting_manual_completion: '#9c27b0',
 };
 
 const statusIcons = {
@@ -36,21 +46,113 @@ const statusIcons = {
   failed: <Error fontSize="small" />,
   paused: <Settings fontSize="small" />,
   stopped: <Error fontSize="small" />,
+  awaiting_manual_completion: <PersonAdd fontSize="small" />,
 };
 
-function WorkflowNode({ data, selected }: NodeProps<NodeData>) {
+interface WorkflowNodeProps extends NodeProps<NodeData> {
+  onUpdateNode?: (nodeId: string, newData: Partial<NodeData>) => void;
+}
+
+function WorkflowNode({ data, selected, id, onUpdateNode }: WorkflowNodeProps) {
   const [configOpen, setConfigOpen] = useState(false);
   const [localData, setLocalData] = useState(data);
+  const [manualCompleteOpen, setManualCompleteOpen] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [completionNotes, setCompletionNotes] = useState('');
+
+  // Debug logging (can be removed in production)
+  // React.useEffect(() => {
+  //   console.log('WorkflowNode data:', {
+  //     label: data.label,
+  //     status: data.status,
+  //     workflowId: data.workflowId,
+  //     taskId: data.taskId,
+  //     showManualButton: (data.status === 'pending' || data.status === 'failed' || data.status === 'awaiting_manual_completion')
+  //   });
+  // }, [data]);
+
+  // Update localData when data prop changes (for external updates)
+  React.useEffect(() => {
+    setLocalData(data);
+  }, [data]);
 
   const handleConfigClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setConfigOpen(true);
   };
 
+  const handleManualCompleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setManualCompleteOpen(true);
+  };
+
+  const handleManualComplete = async () => {
+    if (!userName.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+
+    try {
+      // Get workflow ID from data or context
+      const workflowId = data.workflowId; // Assuming workflowId is passed in data
+      const taskId = data.taskId || id; // Use taskId if available, otherwise node id
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/workflows/${workflowId}/tasks/${taskId}/complete-manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_name: userName.trim(),
+          completion_notes: completionNotes.trim() || undefined
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Update node status via callback
+        if (onUpdateNode && id) {
+          onUpdateNode(id, {
+            status: 'completed',
+            completedBy: userName.trim(),
+            completionMethod: 'manual',
+            completionTimestamp: new Date().toISOString()
+          });
+        }
+        
+        setManualCompleteOpen(false);
+        setUserName('');
+        setCompletionNotes('');
+        
+        alert(`Task marked as completed by ${userName}. The next task will start automatically.`);
+        
+        // Trigger a page refresh after a short delay to show updated workflow status
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        const error = await response.json();
+        console.error('Manual completion error:', error);
+        alert(`Failed to complete task: ${error.detail || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error completing task manually:', error);
+      alert(`Network error: Failed to complete task. Please check your connection and try again.`);
+    }
+  };
+
   const handleConfigSave = () => {
-    // Update the node data in parent component
-    // This would typically update the workflow store
-    console.log('Saving node configuration:', localData);
+    // Update the node data in the parent WorkflowBuilder
+    if (onUpdateNode && id) {
+      onUpdateNode(id, {
+        parameters: localData.parameters,
+        label: localData.label,
+        description: localData.description
+      });
+    }
     setConfigOpen(false);
   };
 
@@ -64,96 +166,256 @@ function WorkflowNode({ data, selected }: NodeProps<NodeData>) {
     }));
   };
 
-  const getParameterFields = () => {
+  // Helper function to render a single parameter field
+  const renderParameterField = (key: string, paramConfig: any, sectionName: string = '') => {
     const parameters = localData.parameters || {};
+    let currentValue = parameters[key] ?? paramConfig.default ?? '';
     
-    // Default parameters based on node type
-    if (data.type === 'task' && data.serviceId === 1) { // HPLC
+    // Initialize materials table with default rows if empty
+    if (paramConfig.type === 'table' && key === 'materials_table' && (!currentValue || currentValue.length === 0)) {
+      currentValue = [
+        { run: 1, material_1: 0.1, material_2: 0.05, material_3: 0.02, material_4: 0, material_5: 0 }
+      ];
+      // Update the parameters with the default value
+      handleParameterChange(key, currentValue);
+    }
+    
+    const fieldProps = {
+      fullWidth: true,
+      size: "small" as const,
+      margin: "dense" as const
+    };
+
+    switch (paramConfig.type) {
+      case 'string':
+        return (
+          <Grid item xs={12} sm={6} key={key}>
+            <TextField
+              label={paramConfig.label || key}
+              value={currentValue}
+              placeholder={paramConfig.placeholder}
+              onChange={(e) => handleParameterChange(key, e.target.value)}
+              required={paramConfig.required}
+              disabled={paramConfig.readonly}
+              {...fieldProps}
+            />
+          </Grid>
+        );
+
+      case 'text':
+        return (
+          <Grid item xs={12} key={key}>
+            <TextField
+              label={paramConfig.label || key}
+              value={currentValue}
+              placeholder={paramConfig.placeholder}
+              onChange={(e) => handleParameterChange(key, e.target.value)}
+              required={paramConfig.required}
+              multiline
+              rows={2}
+              {...fieldProps}
+            />
+          </Grid>
+        );
+
+      case 'number':
+        return (
+          <Grid item xs={12} sm={6} key={key}>
+            <TextField
+              label={paramConfig.label || key}
+              type="number"
+              value={currentValue}
+              onChange={(e) => handleParameterChange(key, parseFloat(e.target.value) || 0)}
+              required={paramConfig.required}
+              inputProps={{
+                min: paramConfig.min,
+                max: paramConfig.max,
+                step: paramConfig.step
+              }}
+              {...fieldProps}
+            />
+          </Grid>
+        );
+
+      case 'boolean':
+        return (
+          <Grid item xs={12} sm={6} key={key}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(currentValue)}
+                  onChange={(e) => handleParameterChange(key, e.target.checked)}
+                />
+              }
+              label={paramConfig.label || key}
+            />
+          </Grid>
+        );
+
+      case 'select':
+        return (
+          <Grid item xs={12} sm={6} key={key}>
+            <FormControl {...fieldProps}>
+              <InputLabel>{paramConfig.label || key}</InputLabel>
+              <Select
+                value={currentValue}
+                onChange={(e) => handleParameterChange(key, e.target.value)}
+                required={paramConfig.required}
+              >
+                {paramConfig.options?.map((option: string) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        );
+
+      case 'table':
+        return (
+          <Grid item xs={12} key={key}>
+            <Typography variant="subtitle2" gutterBottom>
+              {paramConfig.label || key}
+            </Typography>
+            <Paper sx={{ p: 2, mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    {paramConfig.columns?.map((col: any) => (
+                      <TableCell key={col.name}>{col.label}</TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(currentValue || []).map((row: any, index: number) => (
+                    <TableRow key={index}>
+                      {paramConfig.columns?.map((col: any) => (
+                        <TableCell key={col.name}>
+                          {col.type === 'number' ? (
+                            <TextField
+                              type="number"
+                              value={row[col.name] || ''}
+                              onChange={(e) => {
+                                const newTable = [...(currentValue || [])];
+                                newTable[index] = { ...newTable[index], [col.name]: parseFloat(e.target.value) || 0 };
+                                handleParameterChange(key, newTable);
+                              }}
+                              size="small"
+                              inputProps={{
+                                min: col.min,
+                                max: col.max,
+                                step: col.step
+                              }}
+                            />
+                          ) : (
+                            <TextField
+                              value={row[col.name] || ''}
+                              onChange={(e) => {
+                                const newTable = [...(currentValue || [])];
+                                newTable[index] = { ...newTable[index], [col.name]: e.target.value };
+                                handleParameterChange(key, newTable);
+                              }}
+                              size="small"
+                              disabled={col.readonly}
+                            />
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Button
+                onClick={() => {
+                  const newRow = {};
+                  paramConfig.columns?.forEach((col: any) => {
+                    if (col.auto_increment) {
+                      newRow[col.name] = (currentValue || []).length + 1;
+                    } else {
+                      newRow[col.name] = col.type === 'number' ? 0 : '';
+                    }
+                  });
+                  handleParameterChange(key, [...(currentValue || []), newRow]);
+                }}
+                size="small"
+                sx={{ mt: 1 }}
+              >
+                Add Row
+              </Button>
+            </Paper>
+          </Grid>
+        );
+
+      default:
+        return (
+          <Grid item xs={12} sm={6} key={key}>
+            <TextField
+              label={paramConfig.label || key}
+              value={currentValue}
+              onChange={(e) => handleParameterChange(key, e.target.value)}
+              {...fieldProps}
+            />
+          </Grid>
+        );
+    }
+  };
+
+  const getParameterFields = () => {
+    // Get parameter schema from sourceData (from NodePalette)
+    const sourceData = data.sourceData;
+    
+    if (sourceData && sourceData.common_parameters) {
+      // New format with common_parameters and specific_parameters
       return (
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              label="Column Type"
-              value={parameters.column || 'C18'}
-              onChange={(e) => handleParameterChange('column', e.target.value)}
-              fullWidth
-            />
+        <Box>
+          {/* Common Parameters Section */}
+          <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+            Common Parameters
+          </Typography>
+          <Grid container spacing={2}>
+            {Object.entries(sourceData.common_parameters).map(([key, paramConfig]) =>
+              renderParameterField(key, paramConfig, 'common')
+            )}
           </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              label="Flow Rate"
-              value={parameters.flowRate || '1.0 mL/min'}
-              onChange={(e) => handleParameterChange('flowRate', e.target.value)}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              label="Temperature"
-              value={parameters.temperature || '30°C'}
-              onChange={(e) => handleParameterChange('temperature', e.target.value)}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              label="Injection Volume"
-              value={parameters.injectionVolume || '10µL'}
-              onChange={(e) => handleParameterChange('injectionVolume', e.target.value)}
-              fullWidth
-            />
-          </Grid>
-        </Grid>
+
+          {/* Specific Parameters Section */}
+          {sourceData.specific_parameters && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                Specific Parameters
+              </Typography>
+              <Grid container spacing={2}>
+                {Object.entries(sourceData.specific_parameters).map(([key, paramConfig]) =>
+                  renderParameterField(key, paramConfig, 'specific')
+                )}
+              </Grid>
+            </>
+          )}
+        </Box>
       );
-    } else if (data.type === 'task' && data.serviceId === 3) { // Liquid Handler
+    } else if (sourceData && sourceData.parameters) {
+      // Legacy format with merged parameters
       return (
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel>Tip Type</InputLabel>
-              <Select
-                value={parameters.tipType || '1000µL'}
-                onChange={(e) => handleParameterChange('tipType', e.target.value)}
-              >
-                <MenuItem value="200µL">200µL</MenuItem>
-                <MenuItem value="1000µL">1000µL</MenuItem>
-                <MenuItem value="5000µL">5000µL</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel>Aspiration Speed</InputLabel>
-              <Select
-                value={parameters.aspirationSpeed || 'medium'}
-                onChange={(e) => handleParameterChange('aspirationSpeed', e.target.value)}
-              >
-                <MenuItem value="slow">Slow</MenuItem>
-                <MenuItem value="medium">Medium</MenuItem>
-                <MenuItem value="fast">Fast</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              label="Volume"
-              value={parameters.volume || '100µL'}
-              onChange={(e) => handleParameterChange('volume', e.target.value)}
-              fullWidth
-            />
-          </Grid>
+          {Object.entries(sourceData.parameters).map(([key, paramConfig]) =>
+            renderParameterField(key, paramConfig)
+          )}
         </Grid>
       );
     } else {
-      // Generic parameter editor
+      // Fallback to basic fields if no schema available
       return (
         <Grid container spacing={2}>
           <Grid item xs={12}>
             <TextField
-              label="Task Name"
+              label="Name"
               value={localData.label}
               onChange={(e) => setLocalData(prev => ({ ...prev, label: e.target.value }))}
               fullWidth
+              size="small"
+              margin="dense"
             />
           </Grid>
           <Grid item xs={12}>
@@ -164,6 +426,8 @@ function WorkflowNode({ data, selected }: NodeProps<NodeData>) {
               fullWidth
               multiline
               rows={2}
+              size="small"
+              margin="dense"
             />
           </Grid>
         </Grid>
@@ -191,6 +455,47 @@ function WorkflowNode({ data, selected }: NodeProps<NodeData>) {
         </DialogActions>
       </Dialog>
 
+      {/* Manual Completion Dialog */}
+      <Dialog open={manualCompleteOpen} onClose={() => setManualCompleteOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Mark Task as Completed: {data.label}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              label="Your Name"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              fullWidth
+              margin="dense"
+              required
+              placeholder="Enter your name for audit trail"
+            />
+            <TextField
+              label="Completion Notes (Optional)"
+              value={completionNotes}
+              onChange={(e) => setCompletionNotes(e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              margin="dense"
+              placeholder="Add any notes about how this task was completed"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManualCompleteOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleManualComplete} 
+            variant="contained" 
+            color="success"
+            startIcon={<DoneAll />}
+          >
+            Mark Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Node Component */}
       <Box
         sx={{
@@ -213,9 +518,22 @@ function WorkflowNode({ data, selected }: NodeProps<NodeData>) {
         <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', fontSize: '0.9rem' }}>
           {data.label}
         </Typography>
-        <IconButton size="small" onClick={handleConfigClick}>
-          <Settings fontSize="small" />
-        </IconButton>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <IconButton size="small" onClick={handleConfigClick} title="Configure Parameters">
+            <Settings fontSize="small" />
+          </IconButton>
+          {/* Show manual completion button for pending, failed, or awaiting manual completion tasks */}
+          {(data.status === 'pending' || data.status === 'failed' || data.status === 'awaiting_manual_completion') && (
+            <IconButton 
+              size="small" 
+              onClick={handleManualCompleteClick}
+              title="Mark as Manually Completed"
+              sx={{ color: '#4caf50' }}
+            >
+              <DoneAll fontSize="small" />
+            </IconButton>
+          )}
+        </Box>
       </Box>
       
       <Typography variant="caption" sx={{ color: '#666', textTransform: 'uppercase', display: 'block', mb: 1 }}>
@@ -242,6 +560,13 @@ function WorkflowNode({ data, selected }: NodeProps<NodeData>) {
             }}
           />
         </Box>
+      )}
+      
+      {/* Show completion information for manually completed tasks */}
+      {data.status === 'completed' && data.completedBy && (
+        <Typography variant="caption" sx={{ color: '#4caf50', display: 'block', mt: 1, fontStyle: 'italic' }}>
+          Completed by: {data.completedBy} ({data.completionMethod || 'manual'})
+        </Typography>
       )}
       
       {data.category && (

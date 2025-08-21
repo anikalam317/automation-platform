@@ -1,0 +1,244 @@
+[
+  {
+    "name": "Sample Measurement",
+    "category": "Preparation",
+    "description": "Measure sample weight and properties",
+    "required_capabilities": [
+      "balance",
+      "measurement"
+    ],
+    "optional_capabilities": [
+      "precision_weighing"
+    ],
+    "estimated_duration_seconds": 300,
+    "parameters": {
+      "sample_id": {
+        "type": "string",
+        "required": true
+      },
+      "target_weight": {
+        "type": "number",
+        "default": 1.0,
+        "unit": "g"
+      },
+      "precision": {
+        "type": "number",
+        "default": 0.001,
+        "unit": "g"
+      }
+    }
+  },
+  {
+    "name": "Mixing",
+    "category": "Operation",
+    "description": "Mix materials using automated mixer",
+    "required_capabilities": [
+      "mixing",
+      "motor_control"
+    ],
+    "optional_capabilities": [
+      "temperature_control"
+    ],
+    "estimated_duration_seconds": 600,
+    "parameters": {
+      "speed": {
+        "type": "number",
+        "default": 100,
+        "unit": "rpm"
+      },
+      "duration": {
+        "type": "number",
+        "default": 300,
+        "unit": "seconds"
+      },
+      "temperature": {
+        "type": "number",
+        "default": 25,
+        "unit": "celsius"
+      }
+    }
+  },
+  {
+    "name": "Monitor",
+    "category": "Data Collection",
+    "description": "Monitor process parameters using NIR spectroscopy",
+    "required_capabilities": [
+      "spectroscopy",
+      "nir"
+    ],
+    "optional_capabilities": [
+      "multivariate_analysis"
+    ],
+    "estimated_duration_seconds": 180,
+    "parameters": {
+      "wavelength_range": {
+        "type": "string",
+        "default": "1100-2500"
+      },
+      "resolution": {
+        "type": "number",
+        "default": 2,
+        "unit": "nm"
+      },
+      "scans": {
+        "type": "number",
+        "default": 32
+      }
+    }
+  },
+  {
+    "name": "Calibration",
+    "category": "Data Analysis",
+    "description": "Calibrate analytical models with reference data",
+    "required_capabilities": [
+      "data_analysis",
+      "statistical_modeling"
+    ],
+    "optional_capabilities": [
+      "pls_regression",
+      "cross_validation"
+    ],
+    "estimated_duration_seconds": 900,
+    "parameters": {
+      "model_type": {
+        "type": "string",
+        "default": "PLS",
+        "options": [
+          "PLS",
+          "PCR",
+          "MLR"
+        ]
+      },
+      "validation_method": {
+        "type": "string",
+        "default": "cross_validation"
+      },
+      "components": {
+        "type": "number",
+        "default": 5
+      }
+    }
+  },
+  {
+    "name": "Code",
+    "category": "Calculation",
+    "description": "Execute custom calculation and analysis code",
+    "required_capabilities": [
+      "computation",
+      "python_execution"
+    ],
+    "optional_capabilities": [
+      "machine_learning",
+      "data_visualization"
+    ],
+    "estimated_duration_seconds": 240,
+    "parameters": {
+      "script_path": {
+        "type": "string",
+        "required": true
+      },
+      "input_data": {
+        "type": "object",
+        "default": {}
+      },
+      "output_format": {
+        "type": "string",
+        "default": "json"
+      }
+    }
+  },
+  {
+    "name": "Blending",
+    "category": "Operation",
+    "description": "Blend materials using high-shear blender",
+    "required_capabilities": [
+      "blending",
+      "high_shear"
+    ],
+    "optional_capabilities": [
+      "particle_size_control"
+    ],
+    "estimated_duration_seconds": 450,
+    "parameters": {
+      "blend_speed": {
+        "type": "number",
+        "default": 1500,
+        "unit": "rpm"
+      },
+      "blend_time": {
+        "type": "number",
+        "default": 300,
+        "unit": "seconds"
+      },
+      "target_uniformity": {
+        "type": "number",
+        "default": 0.95
+      }
+    }
+  },
+  {
+    "name": "Dashboard",
+    "category": "Visualization",
+    "description": "Display real-time process dashboard",
+    "required_capabilities": [
+      "visualization",
+      "web_interface"
+    ],
+    "optional_capabilities": [
+      "real_time_updates",
+      "alerts"
+    ],
+    "estimated_duration_seconds": 60,
+    "parameters": {
+      "update_interval": {
+        "type": "number",
+        "default": 5,
+        "unit": "seconds"
+      },
+      "display_metrics": {
+        "type": "array",
+        "default": [
+          "temperature",
+          "pressure",
+          "concentration"
+        ]
+      },
+      "alert_thresholds": {
+        "type": "object",
+        "default": {}
+      }
+    }
+  },
+  {
+    "name": "Control",
+    "category": "Control",
+    "description": "Automated process control and optimization",
+    "required_capabilities": [
+      "process_control",
+      "pid_control"
+    ],
+    "optional_capabilities": [
+      "adaptive_control",
+      "optimization"
+    ],
+    "estimated_duration_seconds": 120,
+    "parameters": {
+      "control_variable": {
+        "type": "string",
+        "required": true
+      },
+      "setpoint": {
+        "type": "number",
+        "required": true
+      },
+      "pid_parameters": {
+        "type": "object",
+        "default": {
+          "kp": 1.0,
+          "ki": 0.1,
+          "kd": 0.01
+        }
+      }
+    }
+  }
+]

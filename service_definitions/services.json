@@ -1,0 +1,195 @@
+[
+  {
+    "name": "Run Weight Balance",
+    "category": "Sample Measurement",
+    "type": "measurement_service",
+    "description": "Execute weight measurement using analytical balance",
+    "endpoint": "http://localhost:6001",
+    "required_instruments": [
+      "Weight Balance"
+    ],
+    "capabilities": [
+      "balance",
+      "measurement",
+      "data_logging"
+    ],
+    "parameters": {
+      "measurement_mode": "automatic",
+      "stabilization_time": 3,
+      "number_of_readings": 3,
+      "output_format": "json"
+    },
+    "execution_script": "services/run_weight_balance.py"
+  },
+  {
+    "name": "Run Mixer",
+    "category": "Operation",
+    "type": "mixing_service",
+    "description": "Execute mixing operation with precise control",
+    "endpoint": "http://localhost:6002",
+    "required_instruments": [
+      "Mixer"
+    ],
+    "capabilities": [
+      "mixing",
+      "motor_control",
+      "process_monitoring"
+    ],
+    "parameters": {
+      "mixing_profile": "standard",
+      "speed_ramp": true,
+      "monitoring_interval": 10,
+      "safety_limits": true
+    },
+    "execution_script": "services/run_mixer.py"
+  },
+  {
+    "name": "Run Blender",
+    "category": "Operation",
+    "type": "blending_service",
+    "description": "Execute blending operation for material homogenization",
+    "endpoint": "http://localhost:6003",
+    "required_instruments": [
+      "Blender"
+    ],
+    "capabilities": [
+      "blending",
+      "high_shear",
+      "quality_control"
+    ],
+    "parameters": {
+      "blend_profile": "high_shear",
+      "quality_metrics": [
+        "uniformity",
+        "particle_size"
+      ],
+      "process_optimization": true
+    },
+    "execution_script": "services/run_blender.py"
+  },
+  {
+    "name": "Run NIR",
+    "category": "Spectroscopy",
+    "type": "spectroscopy_service",
+    "description": "Execute NIR spectroscopic analysis with data processing",
+    "endpoint": "http://localhost:6004",
+    "required_instruments": [
+      "NIR"
+    ],
+    "capabilities": [
+      "spectroscopy",
+      "nir",
+      "chemometrics"
+    ],
+    "parameters": {
+      "measurement_mode": "reflectance",
+      "preprocessing": [
+        "snv",
+        "derivative"
+      ],
+      "model_application": true,
+      "real_time_analysis": true
+    },
+    "execution_script": "services/run_nir.py"
+  },
+  {
+    "name": "Develop Model",
+    "category": "Code",
+    "type": "modeling_service",
+    "description": "Develop predictive models using multivariate analysis",
+    "endpoint": "http://localhost:6005",
+    "required_instruments": [
+      "Database"
+    ],
+    "capabilities": [
+      "machine_learning",
+      "statistical_modeling",
+      "validation"
+    ],
+    "parameters": {
+      "algorithm": "PLS",
+      "validation_method": "cross_validation",
+      "feature_selection": true,
+      "model_export": "pmml"
+    },
+    "execution_script": "services/develop_model.py"
+  },
+  {
+    "name": "Apply Model",
+    "category": "Code",
+    "type": "prediction_service",
+    "description": "Apply trained models for real-time prediction",
+    "endpoint": "http://localhost:6006",
+    "required_instruments": [
+      "Database"
+    ],
+    "capabilities": [
+      "prediction",
+      "model_inference",
+      "real_time_processing"
+    ],
+    "parameters": {
+      "model_path": "models/",
+      "confidence_threshold": 0.8,
+      "batch_processing": false,
+      "output_logging": true
+    },
+    "execution_script": "services/apply_model.py"
+  },
+  {
+    "name": "Visualize",
+    "category": "Visualization",
+    "type": "dashboard_service",
+    "description": "Generate real-time visualizations and dashboards",
+    "endpoint": "http://localhost:6007",
+    "required_instruments": [
+      "Database"
+    ],
+    "capabilities": [
+      "visualization",
+      "real_time_updates",
+      "interactive_plots"
+    ],
+    "parameters": {
+      "chart_types": [
+        "line",
+        "scatter",
+        "heatmap"
+      ],
+      "update_frequency": 5,
+      "export_formats": [
+        "png",
+        "pdf",
+        "svg"
+      ],
+      "interactive": true
+    },
+    "execution_script": "services/visualize.py"
+  },
+  {
+    "name": "Data Extraction",
+    "category": "Database",
+    "type": "data_service",
+    "description": "Extract and process data from multiple sources",
+    "endpoint": "http://localhost:6008",
+    "required_instruments": [
+      "Database"
+    ],
+    "capabilities": [
+      "data_extraction",
+      "etl",
+      "data_transformation"
+    ],
+    "parameters": {
+      "data_sources": [
+        "instruments",
+        "lims",
+        "files"
+      ],
+      "extraction_schedule": "real_time",
+      "data_validation": true,
+      "output_format": "json"
+    },
+    "execution_script": "services/data_extraction.py"
+  }
+]

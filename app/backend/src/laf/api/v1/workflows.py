@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
 import os
+import logging
+from pydantic import BaseModel
 
 from ...core.database import get_db
 from ...models.database import Workflow, Task
 from ...schemas.workflow import WorkflowCreate, WorkflowResponse, WorkflowUpdate
 
 router = APIRouter(prefix="/api/workflows", tags=["workflows"])
+
+# Logger
+logger = logging.getLogger(__name__)
 
 # Environment-aware URLs
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8001")
@@ -441,3 +446,224 @@ def execute_workflow_via_celery(workflow_id: int, db: Session = Depends(get_db))
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to queue workflow: {str(e)}")
+
+
+# Manual completion schema
+class ManualCompletionRequest(BaseModel):
+    user_name: str
+    completion_notes: Optional[str] = None
+
+
+@router.post("/{workflow_id}/tasks/{task_id}/complete-manual",
+            summary="Mark Task as Manually Completed",
+            description="""
+Mark a task as manually completed by a lab scientist.
+
+### Use Cases
+- **Manual Tasks**: Tasks requiring human input (Sample Measurement, data entry)
+- **Override Completion**: When automated completion fails but work is done
+- **Quality Control**: Manual verification of automated results
+
+### Process
+1. Task status changes to 'completed'
+2. Completion method recorded as 'manual'
+3. User information and timestamp logged
+4. Workflow progression continues to next task
+
+### Requirements
+- Task must be in 'pending' or 'awaiting_manual_completion' status
+- User name must be provided for audit trail
+- Optional completion notes for documentation
+
+### Audit Trail
+All manual completions are logged with:
+- User who completed the task
+- Timestamp of completion
+- Method used (manual vs automatic)
+- Optional notes about the completion
+""")
+def complete_task_manually(
+    workflow_id: int, 
+    task_id: int, 
+    completion_request: ManualCompletionRequest,
+    db: Session = Depends(get_db)
+):
+    # Verify workflow exists
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # Verify task exists and belongs to workflow
+    task = db.query(Task).filter(
+        Task.id == task_id, 
+        Task.workflow_id == workflow_id
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found in workflow")
+    
+    # Check if task can be manually completed
+    if task.status not in ["pending", "awaiting_manual_completion", "failed"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot manually complete task with status: {task.status}"
+        )
+    
+    # Update task with manual completion
+    task.status = "completed"
+    task.manual_completion = True
+    task.completed_by = completion_request.user_name
+    task.completion_method = "manual"
+    task.completion_timestamp = datetime.now(timezone.utc)
+    
+    # Add completion notes to service_parameters if provided
+    if completion_request.completion_notes:
+        if not task.service_parameters:
+            task.service_parameters = {}
+        task.service_parameters["completion_notes"] = completion_request.completion_notes
+    
+    db.commit()
+    db.refresh(task)
+    
+    # Check if we need to trigger the next task in sequence
+    # Get all tasks in the workflow ordered by order_index
+    all_tasks = db.query(Task).filter(Task.workflow_id == workflow_id).order_by(Task.order_index).all()
+    
+    # Find the current task's position
+    current_index = next((i for i, t in enumerate(all_tasks) if t.id == task_id), None)
+    
+    # If there's a next task and it's pending, trigger it
+    if current_index is not None and current_index < len(all_tasks) - 1:
+        next_task = all_tasks[current_index + 1]
+        
+        # Only trigger if the next task is pending
+        if next_task.status == "pending":
+            # Import here to avoid circular dependency
+            from ...tasks.workers import execute_lab_task
+            
+            # Queue the next task for execution
+            execute_lab_task.delay(next_task.id)
+            
+            logger.info(f"Triggered next task in sequence: {next_task.name} (ID: {next_task.id})")
+    
+    # Check if all tasks are completed to mark workflow as completed
+    remaining_tasks = [t for t in all_tasks if t.status not in ["completed", "failed"]]
+    if not remaining_tasks:
+        if any(t.status == "failed" for t in all_tasks):
+            workflow.status = "failed"
+        else:
+            workflow.status = "completed"
+        db.commit()
+    
+    return {
+        "message": f"Task '{task.name}' marked as manually completed",
+        "task_id": task_id,
+        "completed_by": completion_request.user_name,
+        "completion_timestamp": task.completion_timestamp,
+        "task_status": task.status
+    }
+
+
+@router.get("/{workflow_id}/tasks/{task_id}",
+           summary="Get Task Details",
+           description="Get detailed information about a specific task including completion status and method")
+def get_task_details(workflow_id: int, task_id: int, db: Session = Depends(get_db)):
+    # Verify workflow exists
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # Get task details
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.workflow_id == workflow_id
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found in workflow")
+    
+    return {
+        "id": task.id,
+        "name": task.name,
+        "status": task.status,
+        "order_index": task.order_index,
+        "service_id": task.service_id,
+        "service_parameters": task.service_parameters,
+        "manual_completion": task.manual_completion,
+        "completed_by": task.completed_by,
+        "completion_method": task.completion_method,
+        "completion_timestamp": task.completion_timestamp,
+        "task_type": task.task_type,
+        "executed_at": task.executed_at
+    }
+
+
+@router.post("/{workflow_id}/execute-plugin",
+            summary="Execute Workflow with Plugin System (Scalable)",
+            description="""
+**Execute a workflow using the new plugin-based architecture** - Scalable method for 1000+ tasks.
+
+### Plugin-Based Architecture Benefits
+- **Scalability**: Each task, service, and instrument has its own dedicated plugin
+- **Maintainability**: No hardcoded logic in core workers - behavior defined in specific plugin files
+- **Extensibility**: Easy to add new tasks, services, and instruments without modifying core code
+- **Isolation**: Plugin failures don't affect other plugins or core system
+
+### Plugin Types
+- **Task Plugins**: Manual tasks requiring user interaction (e.g., Sample Measurement)
+- **Service Plugins**: HTTP services for data processing (e.g., Run Weight Balance)
+- **Instrument Plugins**: Physical/simulated instruments (e.g., Weight Balance)
+
+### Plugin Discovery
+The system automatically discovers and registers plugins from:
+- `plugins/tasks/` - Manual and automated task plugins
+- `plugins/services/` - Service coordination plugins  
+- `plugins/instruments/` - Instrument control plugins
+
+### Execution Process
+1. Plugin registry loads all available plugins
+2. Each task is executed by its corresponding plugin
+3. Plugins handle data extraction, parameter validation, and result processing
+4. Context and previous task results are automatically passed between plugins
+5. Sequential execution maintained through plugin completion callbacks
+
+This method is recommended for production environments with many custom tasks.
+""")
+def execute_workflow_via_plugins(workflow_id: int, db: Session = Depends(get_db)):
+    from ...tasks.plugin_workers import execute_plugin_workflow
+    
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    try:
+        # Launch via plugin system
+        result = execute_plugin_workflow.delay(workflow_id)
+        return {
+            "message": f"Workflow {workflow_id} queued for plugin-based execution",
+            "celery_task_id": result.id,
+            "workflow_name": workflow.name,
+            "execution_method": "plugin-based"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to queue plugin workflow: {str(e)}")
+
+
+@router.get("/plugins/status",
+           summary="Get Plugin System Status",
+           description="Get information about registered plugins and their status.")
+def get_plugin_status():
+    try:
+        from ...plugins.registry import get_plugin_registry
+        registry = get_plugin_registry()
+        
+        return {
+            "plugin_system": "active",
+            "registered_plugins": registry.list_plugins(),
+            "total_plugins": sum(len(plugins) for plugins in registry.list_plugins().values())
+        }
+    except Exception as e:
+        return {
+            "plugin_system": "error",
+            "error": str(e),
+            "registered_plugins": {"tasks": [], "services": [], "instruments": []},
+            "total_plugins": 0
+        }

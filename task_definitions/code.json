@@ -1,0 +1,28 @@
+{
+  "name": "Code",
+  "category": "Calculation",
+  "description": "Execute custom calculation and analysis code",
+  "required_capabilities": [
+    "computation",
+    "python_execution"
+  ],
+  "optional_capabilities": [
+    "machine_learning",
+    "data_visualization"
+  ],
+  "estimated_duration_seconds": 240,
+  "parameters": {
+    "script_path": {
+      "type": "string",
+      "required": true
+    },
+    "input_data": {
+      "type": "object",
+      "default": {}
+    },
+    "output_format": {
+      "type": "string",
+      "default": "json"
+    }
+  }
+}

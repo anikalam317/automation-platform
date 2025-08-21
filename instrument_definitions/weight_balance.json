@@ -1,0 +1,200 @@
+{
+  "id": "weight-balance",
+  "name": "Weight Balance",
+  "category": "Equipment",
+  "type": "analytical_balance",
+  "manufacturer": "Mettler Toledo",
+  "model": "XPE205",
+  "description": "High-precision analytical balance with automatic powder dispensing for sample measurement",
+  "endpoint": "http://localhost:5011",
+  "api_endpoints": {
+    "base": "http://localhost:5011",
+    "status": "/status",
+    "initialize": "/initialize",
+    "tare": "/tare",
+    "measure": "/measure",
+    "dispense": "/dispense",
+    "results": "/results",
+    "calibrate": "/calibrate"
+  },
+  "status": "active",
+  "typical_runtime_seconds": 180,
+  "compatible_services": ["run-weight-balance"],
+  "capabilities": [
+    "balance",
+    "measurement",
+    "precision_weighing",
+    "automatic_dispensing",
+    "powder_delivery",
+    "multi_sample_processing"
+  ],
+  "specifications": {
+    "max_weight": "220g",
+    "readability": "0.01mg",
+    "linearity": "0.02mg",
+    "interface": "RS232/USB/Ethernet",
+    "dispensing_accuracy": "±0.1mg",
+    "dispensing_range": "0.1mg - 100g"
+  },
+  "common_parameters": {
+    "instrument_id": {
+      "type": "string",
+      "label": "Instrument ID",
+      "default": "auto-generated",
+      "required": true,
+      "readonly": true
+    },
+    "instrument_description": {
+      "type": "text",
+      "label": "Instrument Description",
+      "placeholder": "Describe the instrument configuration",
+      "required": true
+    },
+    "make": {
+      "type": "string",
+      "label": "Make",
+      "default": "Mettler Toledo",
+      "required": true
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "default": "XPE205",
+      "required": true
+    },
+    "api_endpoint": {
+      "type": "string",
+      "label": "API Endpoint",
+      "default": "http://localhost:5011",
+      "required": true
+    },
+    "input_files": {
+      "type": "file_upload",
+      "label": "Configuration Files",
+      "accept": [".xlsx", ".xls", ".doc", ".docx", ".pdf", ".json"],
+      "multiple": true,
+      "required": false
+    },
+    "assignee": {
+      "type": "string",
+      "label": "Assignee",
+      "placeholder": "Person responsible for this instrument",
+      "required": true
+    }
+  },
+  "specific_parameters": {
+    "stability_time": {
+      "type": "number",
+      "label": "Stability Time (seconds)",
+      "min": 1,
+      "max": 10,
+      "default": 3,
+      "required": false
+    },
+    "auto_tare": {
+      "type": "boolean",
+      "label": "Auto Tare",
+      "default": true,
+      "required": false
+    },
+    "environmental_monitoring": {
+      "type": "boolean",
+      "label": "Environmental Monitoring",
+      "default": true,
+      "required": false
+    },
+    "dispensing_mode": {
+      "type": "select",
+      "label": "Dispensing Mode",
+      "options": ["gravimetric", "volumetric", "hybrid"],
+      "default": "gravimetric",
+      "required": true
+    },
+    "container_type": {
+      "type": "select",
+      "label": "Container Type",
+      "options": ["vial", "beaker", "flask", "custom"],
+      "default": "vial",
+      "required": false
+    }
+  },
+  "service_communication": {
+    "accepts_from_service": true,
+    "expected_data": {
+      "materials_table": "array",
+      "measurement_unit": "string",
+      "tolerance": "number",
+      "replicates": "number"
+    },
+    "processes_requests": [
+      {
+        "action": "receive_measurement_request",
+        "description": "Receive materials table and measurement parameters from service"
+      },
+      {
+        "action": "parse_materials",
+        "description": "Parse the materials table into individual measurement requests"
+      },
+      {
+        "action": "execute_measurements",
+        "description": "Perform automatic dispensing and weighing for each material"
+      },
+      {
+        "action": "validate_results",
+        "description": "Check measurements against tolerance specifications"
+      },
+      {
+        "action": "send_results",
+        "description": "Send measurement results back to the service"
+      }
+    ]
+  },
+  "simulator": {
+    "enabled": true,
+    "script": "instruments/weight_balance_simulator.py",
+    "description": "Simulates weight balance operations when physical instrument is not available",
+    "simulation_parameters": {
+      "measurement_noise": 0.001,
+      "dispensing_accuracy": 0.999,
+      "response_time_ms": 500,
+      "failure_rate": 0.01
+    }
+  },
+  "calibration": {
+    "required": true,
+    "frequency": "daily",
+    "internal_calibration": true,
+    "external_calibration": "monthly",
+    "calibration_weights": ["1g", "10g", "50g", "100g", "200g"]
+  },
+  "maintenance": {
+    "cleaning": "daily",
+    "service_interval": "6 months",
+    "last_service": "2024-01-15",
+    "next_service": "2024-07-15"
+  },
+  "outputs": {
+    "measurement_results": {
+      "format": "json",
+      "includes": [
+        "actual_weight",
+        "target_weight",
+        "deviation",
+        "unit",
+        "timestamp",
+        "temperature",
+        "humidity",
+        "stability_indicator"
+      ]
+    },
+    "status_updates": {
+      "format": "json",
+      "includes": [
+        "instrument_status",
+        "current_operation",
+        "progress_percentage",
+        "estimated_completion"
+      ]
+    }
+  }
+}

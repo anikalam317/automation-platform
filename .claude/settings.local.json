@@ -46,7 +46,13 @@
       "Bash(powershell:*)",
       "WebFetch(domain:localhost)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(icacls:*)",
+      "Bash(touch:*)",
+      "Bash(docker restart:*)"
     ],
     "deny": [],
     "ask": []

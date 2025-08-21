@@ -1,0 +1,61 @@
+{
+  "id": "database-pat",
+  "name": "Database",
+  "category": "Software",
+  "type": "database_server",
+  "manufacturer": "PostgreSQL",
+  "model": "v14",
+  "description": "Database system for data storage and retrieval",
+  "endpoint": "http://localhost:5015",
+  "status_endpoint": "http://localhost:5015/status",
+  "status": "active",
+  "typical_runtime_seconds": 60,
+  "capabilities": [
+    "data_storage",
+    "sql_queries",
+    "real_time_access"
+  ],
+  "specifications": {
+    "type": "relational_database",
+    "concurrent_connections": 100,
+    "storage": "unlimited",
+    "backup": "continuous"
+  },
+  "parameters": {
+    "query_type": {
+      "type": "select",
+      "label": "Query Type",
+      "options": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+      "default": "SELECT",
+      "required": true
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "default": "process_data",
+      "required": true
+    },
+    "connection_pool": {
+      "type": "number",
+      "label": "Connection Pool Size",
+      "min": 1,
+      "max": 50,
+      "default": 20,
+      "required": false
+    },
+    "query_timeout": {
+      "type": "number",
+      "label": "Query Timeout (seconds)",
+      "min": 1,
+      "max": 300,
+      "default": 30,
+      "required": false
+    },
+    "auto_vacuum": {
+      "type": "boolean",
+      "label": "Auto Vacuum",
+      "default": true,
+      "required": false
+    }
+  }
+}

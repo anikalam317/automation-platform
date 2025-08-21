@@ -28,6 +28,11 @@ class TaskResponse(TaskBase):
     status: str
     executed_at: datetime
     results: List[ResultResponse] = []
+    manual_completion: Optional[bool] = None
+    completed_by: Optional[str] = None
+    completion_method: Optional[str] = None
+    completion_timestamp: Optional[datetime] = None
+    task_type: Optional[str] = None
 
     class Config:
         from_attributes = True

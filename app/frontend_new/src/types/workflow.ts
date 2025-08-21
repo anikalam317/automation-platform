@@ -4,10 +4,15 @@ export interface Task {
   workflow_id: number;
   service_id?: number;
   service_parameters?: Record<string, any>;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_manual_completion';
   order_index: number;
   executed_at: string;
   results?: Result[];
+  manual_completion?: boolean;
+  completed_by?: string;
+  completion_method?: string;
+  completion_timestamp?: string;
+  task_type?: string;
 }
 
 export interface Result {
@@ -80,12 +85,18 @@ export interface Instrument extends Service {
 export interface NodeData {
   id: string;
   label: string;
-  type: 'task' | 'instrument' | 'decision' | 'start' | 'end';
+  type: 'task' | 'instrument' | 'decision' | 'start' | 'end' | 'service';
   serviceId?: number;
   parameters?: Record<string, any>;
-  status?: 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'stopped';
+  status?: 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'stopped' | 'awaiting_manual_completion';
   category?: string;
   description?: string;
+  sourceData?: any; // Contains the original parameter schema from JSON files
+  workflowId?: number;
+  taskId?: number;
+  completedBy?: string;
+  completionMethod?: string;
+  completionTimestamp?: string;
 }
 
 export interface FlowNode {

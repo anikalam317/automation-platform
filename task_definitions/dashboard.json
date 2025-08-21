@@ -1,0 +1,33 @@
+{
+  "name": "Dashboard",
+  "category": "Visualization",
+  "description": "Display real-time process dashboard",
+  "required_capabilities": [
+    "visualization",
+    "web_interface"
+  ],
+  "optional_capabilities": [
+    "real_time_updates",
+    "alerts"
+  ],
+  "estimated_duration_seconds": 60,
+  "parameters": {
+    "update_interval": {
+      "type": "number",
+      "default": 5,
+      "unit": "seconds"
+    },
+    "display_metrics": {
+      "type": "array",
+      "default": [
+        "temperature",
+        "pressure",
+        "concentration"
+      ]
+    },
+    "alert_thresholds": {
+      "type": "object",
+      "default": {}
+    }
+  }
+}

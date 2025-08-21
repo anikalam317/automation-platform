@@ -1,0 +1,22 @@
+{
+  "name": "Apply Model",
+  "category": "Code",
+  "type": "prediction_service",
+  "description": "Apply trained models for real-time prediction",
+  "endpoint": "http://localhost:6006",
+  "required_instruments": [
+    "Database"
+  ],
+  "capabilities": [
+    "prediction",
+    "model_inference",
+    "real_time_processing"
+  ],
+  "parameters": {
+    "model_path": "models/",
+    "confidence_threshold": 0.8,
+    "batch_processing": false,
+    "output_logging": true
+  },
+  "execution_script": "services/apply_model.py"
+}

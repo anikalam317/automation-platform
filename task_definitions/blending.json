@@ -1,0 +1,29 @@
+{
+  "name": "Blending",
+  "category": "Operation",
+  "description": "Blend materials using high-shear blender",
+  "required_capabilities": [
+    "blending",
+    "high_shear"
+  ],
+  "optional_capabilities": [
+    "particle_size_control"
+  ],
+  "estimated_duration_seconds": 450,
+  "parameters": {
+    "blend_speed": {
+      "type": "number",
+      "default": 1500,
+      "unit": "rpm"
+    },
+    "blend_time": {
+      "type": "number",
+      "default": 300,
+      "unit": "seconds"
+    },
+    "target_uniformity": {
+      "type": "number",
+      "default": 0.95
+    }
+  }
+}

@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 
 from ...core.database import get_db
 from ...models.database import Task, Result
 from ...schemas.task import TaskUpdate, TaskResponse
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+
+
+@router.get("/", response_model=List[TaskResponse])
+def get_all_tasks(db: Session = Depends(get_db)):
+    """Get all tasks"""
+    tasks = db.query(Task).all()
+    return tasks
 
 
 @router.put("/{task_id}", response_model=TaskResponse)

@@ -1,0 +1,26 @@
+{
+  "name": "Data Extraction",
+  "category": "Database",
+  "type": "data_service",
+  "description": "Extract and process data from multiple sources",
+  "endpoint": "http://localhost:6008",
+  "required_instruments": [
+    "Database"
+  ],
+  "capabilities": [
+    "data_extraction",
+    "etl",
+    "data_transformation"
+  ],
+  "parameters": {
+    "data_sources": [
+      "instruments",
+      "lims",
+      "files"
+    ],
+    "extraction_schedule": "real_time",
+    "data_validation": true,
+    "output_format": "json"
+  },
+  "execution_script": "services/data_extraction.py"
+}

@@ -1,0 +1,161 @@
+{
+  "id": "run-weight-balance",
+  "name": "Run Weight Balance",
+  "category": "Sample Measurement",
+  "type": "measurement_service",
+  "description": "Execute weight measurement using analytical balance with automatic powder delivery",
+  "endpoint": "http://localhost:6001",
+  "status": "active",
+  "compatible_tasks": ["task-sample-measurement"],
+  "compatible_instruments": ["weight-balance"],
+  "required_instruments": [
+    "Weight Balance"
+  ],
+  "capabilities": [
+    "balance",
+    "measurement",
+    "data_logging",
+    "table_extraction",
+    "automatic_dispensing"
+  ],
+  "common_parameters": {
+    "service_id": {
+      "type": "string",
+      "label": "Service ID",
+      "default": "auto-generated",
+      "required": true,
+      "readonly": true
+    },
+    "service_description": {
+      "type": "text",
+      "label": "Service Description",
+      "placeholder": "Describe the service operation",
+      "required": true
+    },
+    "input_files": {
+      "type": "file_upload",
+      "label": "Input Files",
+      "accept": [".xlsx", ".xls", ".doc", ".docx", ".pdf"],
+      "multiple": true,
+      "required": false
+    },
+    "assignee": {
+      "type": "string",
+      "label": "Assignee",
+      "placeholder": "Person responsible for this service",
+      "required": true
+    }
+  },
+  "specific_parameters": {
+    "measurement_mode": {
+      "type": "select",
+      "label": "Measurement Mode",
+      "options": ["automatic", "semi-automatic", "manual"],
+      "default": "automatic",
+      "required": true
+    },
+    "stabilization_time": {
+      "type": "number",
+      "label": "Stabilization Time (seconds)",
+      "min": 1,
+      "max": 30,
+      "default": 3,
+      "required": true
+    },
+    "number_of_readings": {
+      "type": "number",
+      "label": "Number of Readings per Sample",
+      "min": 1,
+      "max": 10,
+      "default": 3,
+      "required": true
+    },
+    "tare_between_samples": {
+      "type": "boolean",
+      "label": "Auto-Tare Between Samples",
+      "default": true,
+      "required": false
+    },
+    "output_format": {
+      "type": "select",
+      "label": "Output Format",
+      "options": ["json", "csv", "xml"],
+      "default": "json",
+      "required": true
+    }
+  },
+  "task_extraction": {
+    "extract_from_task": true,
+    "extracted_parameters": [
+      "materials_table",
+      "measurement_unit",
+      "tolerance",
+      "replicates"
+    ],
+    "description": "This service automatically extracts the materials table and measurement parameters from the connected Sample Measurement task"
+  },
+  "instrument_communication": {
+    "protocol": "REST_API",
+    "commands": {
+      "initialize": "/initialize",
+      "tare": "/tare",
+      "measure": "/measure",
+      "dispense": "/dispense",
+      "status": "/status",
+      "results": "/results"
+    },
+    "data_format": {
+      "request": {
+        "material_id": "string",
+        "target_weight": "number",
+        "unit": "string",
+        "tolerance": "number"
+      },
+      "response": {
+        "actual_weight": "number",
+        "unit": "string",
+        "deviation": "number",
+        "status": "string",
+        "timestamp": "ISO8601"
+      }
+    }
+  },
+  "execution_workflow": [
+    {
+      "step": 1,
+      "action": "extract_task_parameters",
+      "description": "Extract materials table and parameters from connected task"
+    },
+    {
+      "step": 2,
+      "action": "connect_to_instrument",
+      "description": "Establish connection with weight balance instrument"
+    },
+    {
+      "step": 3,
+      "action": "initialize_instrument",
+      "description": "Initialize and calibrate the weight balance"
+    },
+    {
+      "step": 4,
+      "action": "process_materials_table",
+      "description": "Process each row in the materials table"
+    },
+    {
+      "step": 5,
+      "action": "execute_measurements",
+      "description": "Send measurement commands to instrument for each material"
+    },
+    {
+      "step": 6,
+      "action": "collect_results",
+      "description": "Collect and validate measurement results"
+    },
+    {
+      "step": 7,
+      "action": "generate_report",
+      "description": "Generate measurement report with deviations"
+    }
+  ],
+  "execution_script": "services/run_weight_balance.py"
+}

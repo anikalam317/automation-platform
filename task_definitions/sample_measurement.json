@@ -1,0 +1,156 @@
+{
+  "id": "task-sample-measurement",
+  "name": "Sample Measurement",
+  "category": "Preparation",
+  "description": "Measure sample weight and properties using automatic powder delivery",
+  "workflow_position": "initial",
+  "status": "active",
+  "compatible_services": ["run-weight-balance"],
+  "required_capabilities": [
+    "balance",
+    "measurement",
+    "automatic_dispensing"
+  ],
+  "optional_capabilities": [
+    "precision_weighing"
+  ],
+  "estimated_duration_seconds": 300,
+  "common_parameters": {
+    "task_id": {
+      "type": "string",
+      "label": "Task ID",
+      "default": "auto-generated",
+      "required": true,
+      "readonly": true
+    },
+    "task_description": {
+      "type": "text",
+      "label": "Task Description",
+      "placeholder": "Describe the measurement task",
+      "required": true
+    },
+    "input_files": {
+      "type": "file_upload",
+      "label": "Input Files",
+      "accept": [".xlsx", ".xls", ".doc", ".docx", ".pdf"],
+      "multiple": true,
+      "required": false
+    },
+    "assignee": {
+      "type": "string",
+      "label": "Assignee",
+      "placeholder": "Person responsible for this task",
+      "required": true
+    }
+  },
+  "specific_parameters": {
+    "measurement_unit": {
+      "type": "select",
+      "label": "Measurement Unit",
+      "options": ["g", "mg", "kg", "µg"],
+      "default": "g",
+      "required": true
+    },
+    "materials_table": {
+      "type": "table",
+      "label": "Materials to Measure",
+      "required": true,
+      "columns": [
+        {
+          "name": "run",
+          "type": "number",
+          "label": "Run",
+          "readonly": true,
+          "auto_increment": true
+        },
+        {
+          "name": "material_1",
+          "type": "number",
+          "label": "Material 1",
+          "placeholder": "Amount",
+          "min": 0,
+          "step": 0.001,
+          "editable": true
+        },
+        {
+          "name": "material_2",
+          "type": "number",
+          "label": "Material 2",
+          "placeholder": "Amount",
+          "min": 0,
+          "step": 0.001,
+          "editable": true
+        },
+        {
+          "name": "material_3",
+          "type": "number",
+          "label": "Material 3",
+          "placeholder": "Amount",
+          "min": 0,
+          "step": 0.001,
+          "editable": true
+        },
+        {
+          "name": "material_4",
+          "type": "number",
+          "label": "Material 4",
+          "placeholder": "Amount",
+          "min": 0,
+          "step": 0.001,
+          "editable": true
+        },
+        {
+          "name": "material_5",
+          "type": "number",
+          "label": "Material 5",
+          "placeholder": "Amount",
+          "min": 0,
+          "step": 0.001,
+          "editable": true
+        }
+      ],
+      "default_rows": 1,
+      "max_rows": 50,
+      "allow_add_row": true,
+      "allow_delete_row": true,
+      "allow_add_column": true,
+      "column_name_editable": true
+    },
+    "tolerance": {
+      "type": "number",
+      "label": "Tolerance (%)",
+      "min": 0.01,
+      "max": 10,
+      "default": 1.0,
+      "step": 0.01,
+      "required": true
+    },
+    "replicates": {
+      "type": "number",
+      "label": "Number of Replicates",
+      "min": 1,
+      "max": 10,
+      "default": 1,
+      "required": false
+    }
+  },
+  "quality_checks": [
+    "weight_accuracy",
+    "stability",
+    "tolerance_check",
+    "material_verification"
+  ],
+  "outputs": [
+    "measured_weights",
+    "deviations",
+    "timestamp",
+    "measurement_log",
+    "quality_report"
+  ],
+  "prerequisites": [],
+  "success_criteria": {
+    "weight_stability": "< 0.1mg drift",
+    "measurement_accuracy": "± 0.01mg",
+    "tolerance_met": "All measurements within specified tolerance"
+  }
+}

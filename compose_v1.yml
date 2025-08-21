@@ -82,13 +82,35 @@ services:
   redis:
     image: redis:6-alpine
 
+  # Data initialization service
+  data_init:
+    image: busybox
+    volumes:
+      - instrument_data:/data/instrument_definitions
+      - task_data:/data/task_definitions
+      - service_data:/data/service_definitions
+      - ./instrument_definitions:/source/instrument_definitions:ro
+      - ./task_definitions:/source/task_definitions:ro
+      - ./service_definitions:/source/service_definitions:ro
+    command: |
+      sh -c "
+        echo 'Copying initial data to volumes...'
+        cp -r /source/instrument_definitions/* /data/instrument_definitions/ 2>/dev/null || echo 'No instrument definitions to copy'
+        cp -r /source/task_definitions/* /data/task_definitions/ 2>/dev/null || echo 'No task definitions to copy'
+        cp -r /source/service_definitions/* /data/service_definitions/ 2>/dev/null || echo 'No service definitions to copy'
+        chmod -R 777 /data/instrument_definitions /data/task_definitions /data/service_definitions
+        echo 'Data initialization complete'
+      "
+
   # Backend API (FastAPI)
   backend:
     build: ./app/backend
     command: ["bash", "/app/wait-for-it.sh", "db:5432", "--", "poetry", "run", "uvicorn", "laf.api.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
     volumes:
       - ./app/backend:/app
-      - ./instrument_definitions:/app/instrument_definitions
+      - instrument_data:/app/instrument_definitions
+      - task_data:/app/task_definitions  
+      - service_data:/app/service_definitions
     ports:
       - "8001:8001"
     environment:
@@ -96,6 +118,8 @@ services:
     depends_on:
       - db
       - redis
+      - data_init
+    user: "0:0"  # Run as root to have write permissions
 
   # Celery Worker (For concurrent workflow execution)
   worker:
@@ -103,7 +127,9 @@ services:
     command: ["bash", "/app/wait-for-it.sh", "redis:6379", "--", "poetry", "run", "celery", "-A", "laf.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
     volumes:
       - ./app/backend:/app
-      - ./instrument_definitions:/app/instrument_definitions
+      - instrument_data:/app/instrument_definitions
+      - task_data:/app/task_definitions
+      - service_data:/app/service_definitions
     environment:
       <<: [*backend_env, *database_env, *celery_env, *instruments_env]
     depends_on:
@@ -111,6 +137,7 @@ services:
       - redis
       - sample-prep-station
       - hplc-system
+      - data_init
 
   # Frontend (New React + TypeScript + Material-UI)
   frontend_new:
@@ -308,3 +335,6 @@ services:
 
 volumes:
   postgres_data:
+  instrument_data:
+  task_data:
+  service_data:

@@ -1,0 +1,30 @@
+{
+  "name": "Mixing",
+  "category": "Operation",
+  "description": "Mix materials using automated mixer",
+  "required_capabilities": [
+    "mixing",
+    "motor_control"
+  ],
+  "optional_capabilities": [
+    "temperature_control"
+  ],
+  "estimated_duration_seconds": 600,
+  "parameters": {
+    "speed": {
+      "type": "number",
+      "default": 100,
+      "unit": "rpm"
+    },
+    "duration": {
+      "type": "number",
+      "default": 300,
+      "unit": "seconds"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 25,
+      "unit": "celsius"
+    }
+  }
+}

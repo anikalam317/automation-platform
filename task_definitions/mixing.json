@@ -1,0 +1,59 @@
+{
+  "id": "task-mixing",
+  "name": "Mixing",
+  "category": "Operation",
+  "description": "Mix materials using automated mixer",
+  "workflow_position": "operation",
+  "status": "active",
+  "compatible_instruments": ["mixer-pat"],
+  "required_capabilities": [
+    "mixing",
+    "motor_control"
+  ],
+  "optional_capabilities": [
+    "temperature_control"
+  ],
+  "estimated_duration_seconds": 600,
+  "parameters": {
+    "sample_id": {
+      "type": "string",
+      "label": "Sample ID",
+      "default": "auto-generated",
+      "required": true
+    },
+    "speed": {
+      "type": "number",
+      "label": "Mixing Speed (RPM)",
+      "min": 10,
+      "max": 2000,
+      "default": 500,
+      "step": 10,
+      "required": true
+    },
+    "duration": {
+      "type": "number",
+      "label": "Duration (seconds)",
+      "min": 10,
+      "max": 3600,
+      "default": 600,
+      "step": 10,
+      "required": true
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature (°C)",
+      "min": -10,
+      "max": 300,
+      "default": 25,
+      "step": 0.1,
+      "required": false
+    }
+  },
+  "quality_checks": ["speed_accuracy", "temperature_stability"],
+  "outputs": ["mixing_data", "torque_profile"],
+  "prerequisites": ["sample_measurement"],
+  "success_criteria": {
+    "speed_stability": "± 1%",
+    "temperature_control": "± 0.5°C"
+  }
+}

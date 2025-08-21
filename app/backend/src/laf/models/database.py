@@ -37,6 +37,13 @@ class Task(Base):
     service_hash = Column(String(64))
     status = Column(String(64), default="pending")
     executed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Manual completion tracking fields
+    manual_completion = Column(Boolean, default=False)
+    completed_by = Column(String(128))
+    completion_method = Column(String(64), default="automatic")
+    completion_timestamp = Column(DateTime)
+    task_type = Column(String(64), default="automatic")  # manual, service, instrument, automatic
 
     workflow = relationship("Workflow", back_populates="tasks")
     service = relationship("Service", back_populates="tasks")

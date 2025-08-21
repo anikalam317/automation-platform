@@ -23,18 +23,19 @@ import {
   Settings,
   Memory
 } from '@mui/icons-material';
-import { taskTemplateAPI, serviceAPI } from '../services/api';
+import { taskTemplateAPI, serviceAPI, instrumentManagementAPI } from '../services/api';
 import { TaskTemplate, Service } from '../types/workflow';
 
 interface NodeTemplate {
   id: string;
-  type: 'task' | 'instrument';
+  type: 'task' | 'instrument' | 'service';
   label: string;
   description: string;
   category: string;
   icon: React.ReactNode;
   defaultParameters?: Record<string, any>;
-  sourceData?: TaskTemplate | Service; // Reference to original data
+  sourceData?: TaskTemplate | Service | any; // Reference to original data
+  serviceId?: number; // For services
 }
 
 // Icon mapping for categories and types
@@ -97,6 +98,7 @@ interface NodePaletteProps {
 export default function NodePalette({ onDragStart }: NodePaletteProps) {
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
   const [instruments, setInstruments] = useState<Service[]>([]);
+  const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,32 +110,40 @@ export default function NodePalette({ onDragStart }: NodePaletteProps) {
       let services = instruments;
       
       try {
-        // Fetch from new instrument management API
-        const paletteResponse = await fetch('/api/instrument-management/node-palette');
-        if (paletteResponse.ok) {
-          const paletteData = await paletteResponse.json();
-          
-          // Convert new API data to existing format for backwards compatibility
-          if (paletteData.tasks) {
-            templates = paletteData.tasks.map((task: any) => ({
-              id: task.id,
-              name: task.name,
-              description: task.description,
-              category: task.category,
-              default_parameters: extractDefaultParameters(task.parameters || {}),
-              estimated_duration: Math.round(task.estimated_duration / 60) // Convert to minutes
-            }));
-          }
-          
-          if (paletteData.instruments) {
-            services = paletteData.instruments.map((instrument: any) => ({
-              id: instrument.id,
-              name: instrument.name,
-              description: instrument.description,
-              type: instrument.category,
-              default_parameters: extractDefaultParameters(instrument.parameters || {})
-            }));
-          }
+        // Fetch from new instrument management API using configured axios instance
+        const paletteData = await instrumentManagementAPI.getNodePaletteData();
+        
+        // Convert new API data to existing format for backwards compatibility
+        if (paletteData.tasks) {
+          templates = paletteData.tasks.map((task: any) => ({
+            id: task.id,
+            name: task.name,
+            description: task.description,
+            category: task.category,
+            default_parameters: extractDefaultParameters(task.parameters || {}),
+            estimated_duration: Math.round(task.estimated_duration / 60), // Convert to minutes
+            common_parameters: task.common_parameters, // Preserve original structure
+            specific_parameters: task.specific_parameters, // Preserve original structure
+            parameters: task.parameters // Keep merged parameters as fallback
+          }));
+        }
+        
+        if (paletteData.instruments) {
+          services = paletteData.instruments.map((instrument: any) => ({
+            id: instrument.id,
+            name: instrument.name,
+            description: instrument.description,
+            type: instrument.category,
+            default_parameters: extractDefaultParameters(instrument.parameters || {}),
+            common_parameters: instrument.common_parameters, // Preserve original structure
+            specific_parameters: instrument.specific_parameters, // Preserve original structure
+            parameters: instrument.parameters // Keep merged parameters as fallback
+          }));
+        }
+        
+        // Load services from the palette data
+        if (paletteData.services) {
+          setServices(paletteData.services);
         }
       } catch (paletteError) {
         console.warn('New instrument management API not available, falling back to legacy APIs');
@@ -156,7 +166,7 @@ export default function NodePalette({ onDragStart }: NodePaletteProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [taskTemplates, instruments]);
 
   // Fetch data on mount
   useEffect(() => {
@@ -206,6 +216,19 @@ export default function NodePalette({ onDragStart }: NodePaletteProps) {
     icon: serviceTypeIcons[instrument.type as keyof typeof serviceTypeIcons] || serviceTypeIcons.default,
     defaultParameters: instrument.default_parameters,
     sourceData: instrument
+  }));
+
+  // Convert services to node templates
+  const serviceNodeTemplates: NodeTemplate[] = services.map(service => ({
+    id: `service-${service.id}`,
+    type: 'service' as const,
+    label: service.name,
+    description: service.description,
+    category: 'services',
+    icon: serviceTypeIcons[service.type as keyof typeof serviceTypeIcons] || serviceTypeIcons.default,
+    defaultParameters: service.parameters || {},
+    sourceData: service,
+    serviceId: parseInt(service.id) // Store the service ID for backend mapping
   }));
 
 
@@ -311,7 +334,7 @@ export default function NodePalette({ onDragStart }: NodePaletteProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Memory color="secondary" />
             <Typography variant="subtitle1" fontWeight="bold">
-              Instruments & Services
+              Instruments
             </Typography>
             <Chip size="small" label={instruments.length} />
           </Box>
@@ -348,6 +371,59 @@ export default function NodePalette({ onDragStart }: NodePaletteProps) {
                   <ListItemText
                     primary={template.label}
                     secondary={`${template.description} • ${(template.sourceData as Service)?.type}`}
+                    primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
+                    secondaryTypographyProps={{ fontSize: '0.7rem' }}
+                  />
+                </Paper>
+              </ListItem>
+            ))}
+          </List>
+        </AccordionDetails>
+      </Accordion>
+
+      {/* Services Section */}
+      <Accordion defaultExpanded>
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Settings color="primary" />
+            <Typography variant="subtitle1" fontWeight="bold">
+              Services
+            </Typography>
+            <Chip size="small" label={services.length} />
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0 }}>
+          <List dense>
+            {serviceNodeTemplates.map(template => (
+              <ListItem 
+                key={template.id}
+                sx={{ 
+                  cursor: 'grab',
+                  '&:hover': { backgroundColor: '#f5f5f5' },
+                  py: 0.5
+                }}
+                draggable
+                onDragStart={(event) => onDragStart(event, template)}
+              >
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 1,
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    backgroundColor: '#e8f5e9'
+                  }}
+                >
+                  <Box sx={{ color: '#2e7d32' }}>
+                    {template.icon}
+                  </Box>
+                  <ListItemText
+                    primary={template.label}
+                    secondary={`${template.description} • Service ID: ${template.serviceId}`}
                     primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
                     secondaryTypographyProps={{ fontSize: '0.7rem' }}
                   />

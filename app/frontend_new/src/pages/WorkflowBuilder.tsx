@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactFlow, {
   Node,
@@ -34,12 +34,8 @@ import WorkflowNode from '../components/WorkflowNode';
 import NodePalette from '../components/NodePalette';
 import AIWorkflowGenerator from '../components/AIWorkflowGenerator';
 import { useWorkflowStore } from '../store/workflowStore';
-import { workflowAPI } from '../services/api';
-import { WorkflowCreate, Workflow } from '../types/workflow';
-
-const nodeTypes = {
-  workflowNode: WorkflowNode,
-};
+import { workflowAPI, instrumentManagementAPI } from '../services/api';
+import { WorkflowCreate, Workflow, NodeData } from '../types/workflow';
 
 let nodeId = 0;
 const getNodeId = () => `node_${nodeId++}`;
@@ -59,12 +55,108 @@ export default function WorkflowBuilder() {
   
   const { currentWorkflow, setCurrentWorkflow, setLoading } = useWorkflowStore();
 
+  // Handle node updates from configuration dialogs
+  const handleNodeUpdate = useCallback((nodeId: string, newData: Partial<NodeData>) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                ...newData,
+              },
+            }
+          : node
+      )
+    );
+  }, [setNodes]);
+
+  // Create node types with the update callback - memoized to prevent recreation
+  const nodeTypes = useMemo(() => ({
+    workflowNode: (props: any) => (
+      <WorkflowNode {...props} onUpdateNode={handleNodeUpdate} />
+    ),
+  }), [handleNodeUpdate]);
+
+  // Draft key for localStorage persistence
+  const draftKey = id ? `workflow-draft-${id}` : 'workflow-draft-new';
+
+  // Save draft to localStorage
+  const saveDraft = useCallback(() => {
+    const draft = {
+      nodes,
+      edges,
+      workflowName,
+      author,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [nodes, edges, workflowName, author, draftKey]);
+
+  // Load draft from localStorage
+  const loadDraft = useCallback(() => {
+    try {
+      const draftJson = localStorage.getItem(draftKey);
+      if (draftJson) {
+        const draft = JSON.parse(draftJson);
+        // Only load draft if it's less than 24 hours old
+        if (draft.timestamp && (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000)) {
+          setNodes(draft.nodes || []);
+          setEdges(draft.edges || []);
+          setWorkflowName(draft.workflowName || 'New Workflow');
+          setAuthor(draft.author || 'Lab User');
+          return true; // Draft was loaded
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load draft:', error);
+    }
+    return false; // No draft loaded
+  }, [draftKey, setNodes, setEdges]);
+
+  // Clear draft from localStorage
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(draftKey);
+  }, [draftKey]);
+
+  // Auto-save draft every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(saveDraft, 30000);
+    return () => clearInterval(interval);
+  }, [saveDraft]);
+
+  // Save draft when nodes, edges, workflowName, or author change
+  useEffect(() => {
+    if (nodes.length > 0 || edges.length > 0 || workflowName !== 'New Workflow' || author !== 'Lab User') {
+      saveDraft();
+    }
+  }, [nodes, edges, workflowName, author, saveDraft]);
+
+  // Save draft before page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveDraft();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [saveDraft]);
+
   // Load existing workflow if editing
   useEffect(() => {
     if (id) {
       loadWorkflow(parseInt(id));
+    } else {
+      // For new workflows, try to load draft
+      const draftLoaded = loadDraft();
+      if (draftLoaded) {
+        showSnackbar('Draft workflow restored', 'success');
+      }
     }
-  }, [id]);
+  }, [id, loadDraft]);
 
   const loadWorkflow = async (workflowId: number) => {
     try {
@@ -74,28 +166,57 @@ export default function WorkflowBuilder() {
       setWorkflowName(workflow.name);
       setAuthor(workflow.author);
       
-      // Convert workflow tasks to flow nodes
-      const flowNodes: Node[] = workflow.tasks.map((task, index) => ({
-        id: task.id.toString(),
-        type: 'workflowNode',
-        position: { x: 100 + (index % 4) * 250, y: 100 + Math.floor(index / 4) * 150 },
-        data: {
+      // Sort tasks by order_index to ensure correct sequence
+      const sortedTasks = [...workflow.tasks].sort((a, b) => a.order_index - b.order_index);
+      
+      // Convert workflow tasks to flow nodes - need to fetch sourceData for parameter schemas
+      const flowNodes: Node[] = await Promise.all(sortedTasks.map(async (task, index) => {
+        // Try to get sourceData (parameter schema) for the task
+        let sourceData = null;
+        try {
+          // Fetch from instrument management API to get parameter schema
+          const paletteData = await instrumentManagementAPI.getNodePaletteData();
+          
+          // Look for matching task in tasks, instruments, or services
+          const allItems = [
+            ...(paletteData.tasks || []),
+            ...(paletteData.instruments || []),
+            ...(paletteData.services || [])
+          ];
+          
+          sourceData = allItems.find(item => item.name === task.name);
+        } catch (error) {
+          console.warn(`Could not fetch sourceData for task: ${task.name}`, error);
+        }
+
+        return {
           id: task.id.toString(),
-          label: task.name,
-          type: 'task',
-          serviceId: task.service_id,
-          parameters: task.service_parameters,
-          status: task.status,
-        },
+          type: 'workflowNode',
+          position: { x: 100 + (index % 4) * 250, y: 100 + Math.floor(index / 4) * 150 },
+          data: {
+            id: task.id.toString(),
+            label: task.name,
+            type: 'task',
+            serviceId: task.service_id,
+            parameters: task.service_parameters,
+            status: task.status,
+            workflowId: workflow.id,
+            taskId: task.id,
+            completedBy: task.completed_by,
+            completionMethod: task.completion_method,
+            completionTimestamp: task.completion_timestamp,
+            sourceData: sourceData, // Include parameter schema for configuration dialog
+          },
+        };
       }));
       
-      // Create edges based on task order
-      const flowEdges: Edge[] = workflow.tasks
+      // Create edges based on sorted task order
+      const flowEdges: Edge[] = sortedTasks
         .slice(0, -1)
         .map((task, index) => ({
-          id: `edge-${task.id}-${workflow.tasks[index + 1].id}`,
+          id: `edge-${task.id}-${sortedTasks[index + 1].id}`,
           source: task.id.toString(),
-          target: workflow.tasks[index + 1].id.toString(),
+          target: sortedTasks[index + 1].id.toString(),
           type: 'smoothstep',
         }));
       
@@ -140,6 +261,7 @@ export default function WorkflowBuilder() {
         'hplc-system-01': 2,
         'gcms-system-01': 6,
         'liquid-handler-01': 7,
+        'weight-balance': 26, // Weight Balance service from the API response
       };
 
       let serviceId: number | undefined = undefined;
@@ -147,6 +269,10 @@ export default function WorkflowBuilder() {
       if (nodeData.type === 'instrument' && nodeData.sourceData?.id) {
         serviceId = instrumentToServiceMapping[nodeData.sourceData.id];
         console.log(`Mapped instrument ${nodeData.sourceData.id} to service_id ${serviceId}`);
+      } else if (nodeData.type === 'service' && nodeData.serviceId) {
+        // Direct service mapping - services already have their service ID
+        serviceId = nodeData.serviceId;
+        console.log(`Using service ${nodeData.label} with service_id ${serviceId}`);
       }
 
       const newNode: Node = {
@@ -161,6 +287,8 @@ export default function WorkflowBuilder() {
           description: nodeData.description,
           parameters: nodeData.defaultParameters,
           serviceId: serviceId,
+          sourceData: nodeData.sourceData, // Preserve parameter schema from JSON files
+          status: 'pending', // Default status for new nodes
         },
       };
 
@@ -173,6 +301,73 @@ export default function WorkflowBuilder() {
     event.dataTransfer.setData('application/reactflow', 'workflowNode');
     event.dataTransfer.setData('application/json', JSON.stringify(nodeTemplate));
     event.dataTransfer.effectAllowed = 'move';
+  };
+
+  // Function to sort nodes based on React Flow connections
+  const getNodeExecutionOrder = () => {
+    if (nodes.length === 0) return [];
+    
+    // Create adjacency map from edges
+    const adjacencyMap = new Map<string, string[]>();
+    const incomingCount = new Map<string, number>();
+    
+    // Initialize all nodes
+    nodes.forEach(node => {
+      adjacencyMap.set(node.id, []);
+      incomingCount.set(node.id, 0);
+    });
+    
+    // Build adjacency map and incoming count
+    edges.forEach(edge => {
+      const targets = adjacencyMap.get(edge.source) || [];
+      targets.push(edge.target);
+      adjacencyMap.set(edge.source, targets);
+      
+      const incoming = incomingCount.get(edge.target) || 0;
+      incomingCount.set(edge.target, incoming + 1);
+    });
+    
+    // Topological sort to get execution order
+    const queue: string[] = [];
+    const result: string[] = [];
+    
+    // Find nodes with no incoming edges (start nodes)
+    for (const [nodeId, count] of incomingCount.entries()) {
+      if (count === 0) {
+        queue.push(nodeId);
+      }
+    }
+    
+    // If no start node found, use the first node as start
+    if (queue.length === 0 && nodes.length > 0) {
+      queue.push(nodes[0].id);
+    }
+    
+    // Process nodes in topological order
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      result.push(current);
+      
+      const neighbors = adjacencyMap.get(current) || [];
+      for (const neighbor of neighbors) {
+        const newCount = (incomingCount.get(neighbor) || 1) - 1;
+        incomingCount.set(neighbor, newCount);
+        
+        if (newCount === 0) {
+          queue.push(neighbor);
+        }
+      }
+    }
+    
+    // Include any remaining nodes that weren't connected
+    nodes.forEach(node => {
+      if (!result.includes(node.id)) {
+        result.push(node.id);
+      }
+    });
+    
+    // Return nodes in execution order
+    return result.map(nodeId => nodes.find(node => node.id === nodeId)!).filter(Boolean);
   };
 
   const saveWorkflow = async () => {
@@ -195,10 +390,13 @@ export default function WorkflowBuilder() {
         return;
       }
       
+      // Get nodes in correct execution order based on connections
+      const orderedNodes = getNodeExecutionOrder();
+      
       const workflowData: WorkflowCreate = {
         name: workflowName.trim(),
         author: author.trim(),
-        tasks: nodes.map((node, index) => {
+        tasks: orderedNodes.map((node, index) => {
           const task: any = {
             name: node.data.label.trim(),
             service_parameters: node.data.parameters || {}
@@ -226,6 +424,8 @@ export default function WorkflowBuilder() {
         navigate(`/builder/${created.id}`);
       }
       
+      // Clear the draft since workflow was saved successfully
+      clearDraft();
       showSnackbar('Workflow saved successfully', 'success');
     } catch (error: any) {
       console.error('Workflow save error:', error);
@@ -281,6 +481,7 @@ export default function WorkflowBuilder() {
         type: 'task',
         serviceId: task.service_id,
         parameters: task.service_parameters,
+        status: 'pending', // Default status for new nodes
       },
     }));
     
@@ -353,6 +554,19 @@ export default function WorkflowBuilder() {
                 sx={{ mr: 1 }}
               >
                 Save
+                {(nodes.length > 0 || edges.length > 0 || workflowName !== 'New Workflow' || author !== 'Lab User') && !currentWorkflow && (
+                  <Box 
+                    component="span" 
+                    sx={{ 
+                      ml: 1, 
+                      fontSize: '0.75rem', 
+                      color: 'warning.main',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    (Draft)
+                  </Box>
+                )}
               </Button>
               <Button
                 startIcon={<PlayArrow />}

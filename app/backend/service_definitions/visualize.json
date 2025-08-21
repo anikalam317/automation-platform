@@ -1,0 +1,30 @@
+{
+  "name": "Visualize",
+  "category": "Visualization",
+  "type": "dashboard_service",
+  "description": "Generate real-time visualizations and dashboards",
+  "endpoint": "http://localhost:6007",
+  "required_instruments": [
+    "Database"
+  ],
+  "capabilities": [
+    "visualization",
+    "real_time_updates",
+    "interactive_plots"
+  ],
+  "parameters": {
+    "chart_types": [
+      "line",
+      "scatter",
+      "heatmap"
+    ],
+    "update_frequency": 5,
+    "export_formats": [
+      "png",
+      "pdf",
+      "svg"
+    ],
+    "interactive": true
+  },
+  "execution_script": "services/visualize.py"
+}

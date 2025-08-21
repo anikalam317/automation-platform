@@ -62,20 +62,59 @@ export function validateWorkflowData(workflow: WorkflowCreate): ValidationResult
  */
 export function validateTaskDependencies(workflow: WorkflowCreate): ValidationResult {
   const errors: string[] = [];
-  const taskNames = workflow.tasks.map(task => task.name);
+  const warnings: string[] = [];
   
-  // Check for duplicate task names
-  const duplicateNames = taskNames.filter((name, index) => taskNames.indexOf(name) !== index);
-  if (duplicateNames.length > 0) {
-    errors.push(`Duplicate task names found: ${duplicateNames.join(', ')}`);
+  // Check for empty task names
+  const emptyNames = workflow.tasks.filter(task => !task.name.trim());
+  if (emptyNames.length > 0) {
+    errors.push(`Tasks must have non-empty names`);
   }
   
-  // For now, we don't check dependencies as WorkflowCreate tasks don't have them
-  // Dependencies will be resolved during workflow execution based on order_index
+  // Check for duplicate task names - but only as a warning, not an error
+  // Allow duplicate task names since they can have different services or parameters
+  const taskNames = workflow.tasks.map(task => task.name);
+  const duplicateNames = taskNames.filter((name, index) => taskNames.indexOf(name) !== index);
+  const uniqueDuplicates = [...new Set(duplicateNames)];
+  
+  if (uniqueDuplicates.length > 0) {
+    warnings.push(`Note: You have multiple tasks with the same name (${uniqueDuplicates.join(', ')}). This is allowed, but consider adding numbers or descriptions to distinguish them for clarity.`);
+  }
+  
+  // Allow multiple tasks with same name and same service - this is valid
+  // Users might want to run the same analysis multiple times with different parameters
+  // or at different stages of the workflow
   
   return {
     valid: errors.length === 0,
-    formattedErrors: errors
+    formattedErrors: errors.length > 0 ? errors : (warnings.length > 0 ? warnings : undefined)
+  };
+}
+
+/**
+ * Validate service assignments and instrument usage
+ */
+export function validateServiceAssignments(workflow: WorkflowCreate): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  workflow.tasks.forEach((task, index) => {
+    // Check if task has a service assignment
+    if (!task.service_id && !task.service_parameters) {
+      warnings.push(`Task "${task.name}" has no service or instrument assigned`);
+    }
+    
+    // Check for invalid service IDs
+    if (task.service_id && (task.service_id < 1 || !Number.isInteger(task.service_id))) {
+      errors.push(`Task "${task.name}" has invalid service ID: ${task.service_id}`);
+    }
+  });
+  
+  // Note: Multiple tasks can use the same service/instrument - this is allowed
+  // Services and instruments can be reused across different tasks in a workflow
+  
+  return {
+    valid: errors.length === 0,
+    formattedErrors: [...errors, ...warnings.map(w => `Warning: ${w}`)]
   };
 }
 
@@ -83,6 +122,8 @@ export function validateTaskDependencies(workflow: WorkflowCreate): ValidationRe
  * Comprehensive workflow validation
  */
 export function validateCompleteWorkflow(workflow: WorkflowCreate): ValidationResult {
+  const allErrors: string[] = [];
+  
   // Schema validation
   const schemaResult = validateWorkflowData(workflow);
   if (!schemaResult.valid) {
@@ -91,11 +132,20 @@ export function validateCompleteWorkflow(workflow: WorkflowCreate): ValidationRe
   
   // Dependencies validation
   const depsResult = validateTaskDependencies(workflow);
-  if (!depsResult.valid) {
-    return depsResult;
+  if (!depsResult.valid && depsResult.formattedErrors) {
+    allErrors.push(...depsResult.formattedErrors);
   }
   
-  return { valid: true };
+  // Service assignments validation  
+  const serviceResult = validateServiceAssignments(workflow);
+  if (!serviceResult.valid && serviceResult.formattedErrors) {
+    allErrors.push(...serviceResult.formattedErrors);
+  }
+  
+  return {
+    valid: allErrors.length === 0,
+    formattedErrors: allErrors.length > 0 ? allErrors : undefined
+  };
 }
 
 /**

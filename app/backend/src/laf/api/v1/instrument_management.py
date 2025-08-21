@@ -12,47 +12,63 @@ from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/instrument-management", tags=["instrument-management"])
 
-# Paths for instrument definitions
+# Paths for definitions
 INSTRUMENT_DEFINITIONS_PATH = Path("instrument_definitions")
+TASK_DEFINITIONS_PATH = Path("task_definitions")
+SERVICE_DEFINITIONS_PATH = Path("service_definitions")
 INSTRUMENT_CONFIGS_PATH = Path("instrument_configs")
 
 # Ensure directories exist
 INSTRUMENT_DEFINITIONS_PATH.mkdir(exist_ok=True)
+TASK_DEFINITIONS_PATH.mkdir(exist_ok=True)
+SERVICE_DEFINITIONS_PATH.mkdir(exist_ok=True)
 INSTRUMENT_CONFIGS_PATH.mkdir(exist_ok=True)
 
+def _merge_parameters(item_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge common_parameters and specific_parameters, or return existing parameters"""
+    # Handle new structure with common_parameters and specific_parameters
+    if 'common_parameters' in item_data or 'specific_parameters' in item_data:
+        merged = {}
+        merged.update(item_data.get('common_parameters', {}))
+        merged.update(item_data.get('specific_parameters', {}))
+        return merged
+    
+    # Handle old structure with just parameters
+    return item_data.get('parameters', {})
+
 class InstrumentDefinition(BaseModel):
-    id: str
+    id: Optional[str] = None  # Auto-generated if not provided
     name: str
     category: str
     manufacturer: Optional[str] = None
     model: Optional[str] = None
     description: str
-    capabilities: List[str]
-    parameters: Dict[str, Any]
-    connection: Dict[str, Any]
-    validation: Dict[str, Any]
-    outputs: Dict[str, Any]
-    typical_runtime_seconds: int
-    status: str = "active"
-    created_by: str = "user"
+    capabilities: List[str] = []
+    parameters: Dict[str, Any] = {}
+    connection: Dict[str, Any] = {}
+    validation: Dict[str, Any] = {}
+    outputs: Dict[str, Any] = {}
+    typical_runtime_seconds: Optional[int] = None  # Auto-generated if not provided
+    status: Optional[str] = None  # Auto-generated if not provided
+    created_by: Optional[str] = None  # Auto-generated if not provided
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
 class TaskDefinition(BaseModel):
-    id: str
+    id: Optional[str] = None  # Auto-generated if not provided
     name: str
     category: str
     description: str
-    workflow_position: str
-    compatible_instruments: List[str]
-    parameters: Dict[str, Any]
-    quality_checks: List[str]
-    outputs: List[str]
-    prerequisites: List[str]
-    estimated_duration_seconds: int
-    success_criteria: Dict[str, Any]
-    status: str = "active"
-    created_by: str = "user"
+    workflow_position: Optional[str] = None  # Auto-generated if not provided
+    compatible_instruments: List[str] = []
+    parameters: Dict[str, Any] = {}
+    quality_checks: Optional[List[str]] = None  # Auto-generated if not provided
+    outputs: Optional[List[str]] = None  # Auto-generated if not provided
+    prerequisites: Optional[List[str]] = None  # Auto-generated if not provided
+    estimated_duration_seconds: Optional[int] = None  # Auto-generated if not provided
+    success_criteria: Optional[Dict[str, Any]] = None  # Auto-generated if not provided
+    status: Optional[str] = None  # Auto-generated if not provided
+    created_by: Optional[str] = None  # Auto-generated if not provided
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -66,11 +82,17 @@ def list_instruments() -> List[Dict[str, Any]]:
     for file_path in INSTRUMENT_DEFINITIONS_PATH.glob("*.json"):
         if file_path.name.startswith("task_"):
             continue  # Skip task definitions
+        if file_path.name == "instruments.json":
+            continue  # Skip consolidated file, use individual files
             
         try:
             with open(file_path, 'r') as f:
                 instrument = json.load(f)
-                instruments.append(instrument)
+                # Handle both single objects and arrays
+                if isinstance(instrument, list):
+                    instruments.extend(instrument)
+                else:
+                    instruments.append(instrument)
         except Exception as e:
             print(f"Error loading instrument {file_path}: {e}")
             continue
@@ -99,10 +121,32 @@ def get_instrument(instrument_id: str) -> Dict[str, Any]:
 def create_instrument(instrument: InstrumentDefinition) -> Dict[str, str]:
     """Create new instrument definition"""
     
+    # Auto-generate required fields if not provided
+    if not instrument.id:
+        # Generate ID from name
+        instrument.id = instrument.name.lower().replace(" ", "-").replace("_", "-")
+        # Ensure uniqueness
+        counter = 1
+        base_id = instrument.id
+        while (INSTRUMENT_DEFINITIONS_PATH / f"{instrument.id}.json").exists():
+            instrument.id = f"{base_id}-{counter}"
+            counter += 1
+    
+    if not instrument.status:
+        instrument.status = "active"
+    
+    if not instrument.typical_runtime_seconds:
+        instrument.typical_runtime_seconds = 300  # Default 5 minutes
+    
     # Set timestamps
     now = datetime.utcnow().isoformat() + "Z"
-    instrument.created_at = now
+    if not instrument.created_at:
+        instrument.created_at = now
     instrument.updated_at = now
+    
+    # Set default creator
+    if not instrument.created_by:
+        instrument.created_by = "user"
     
     file_path = INSTRUMENT_DEFINITIONS_PATH / f"{instrument.id}.json"
     
@@ -110,11 +154,16 @@ def create_instrument(instrument: InstrumentDefinition) -> Dict[str, str]:
         raise HTTPException(status_code=400, detail=f"Instrument {instrument.id} already exists")
     
     try:
+        # Ensure directory exists
+        INSTRUMENT_DEFINITIONS_PATH.mkdir(exist_ok=True)
+        
         with open(file_path, 'w') as f:
             json.dump(instrument.dict(), f, indent=2)
         
         return {"message": f"Instrument {instrument.name} created successfully", "id": instrument.id}
         
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Permission denied: Cannot create instrument file. Please check file system permissions.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating instrument: {str(e)}")
 
@@ -164,6 +213,12 @@ def delete_instrument(instrument_id: str) -> Dict[str, str]:
         
         return {"message": f"Instrument {instrument_id} deleted successfully"}
         
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Permission denied: Cannot delete instrument file. The file system may be read-only or you may not have sufficient permissions.")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Instrument file not found: {instrument_id}")
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting instrument: {str(e)}")
 
@@ -174,11 +229,18 @@ def list_tasks() -> List[Dict[str, Any]]:
     """List all available task definitions"""
     tasks = []
     
-    for file_path in INSTRUMENT_DEFINITIONS_PATH.glob("task_*.json"):
+    # Read from task_definitions directory, looking for both task_*.json and *.json files
+    for file_path in TASK_DEFINITIONS_PATH.glob("*.json"):
+        # Skip files that don't contain task definitions
+        if file_path.name in ["tasks.json"]:  # Skip consolidated files
+            continue
+            
         try:
             with open(file_path, 'r') as f:
                 task = json.load(f)
-                tasks.append(task)
+                # Only include if it looks like a task definition
+                if 'id' in task and 'name' in task:
+                    tasks.append(task)
         except Exception as e:
             print(f"Error loading task {file_path}: {e}")
             continue
@@ -190,16 +252,21 @@ def list_tasks() -> List[Dict[str, Any]]:
             description="Get detailed definition for a specific task")
 def get_task(task_id: str) -> Dict[str, Any]:
     """Get specific task definition"""
-    file_path = INSTRUMENT_DEFINITIONS_PATH / f"task_{task_id}.json"
+    # Try different naming patterns
+    possible_files = [
+        TASK_DEFINITIONS_PATH / f"task_{task_id}.json",
+        TASK_DEFINITIONS_PATH / f"{task_id}.json"
+    ]
     
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    for file_path in possible_files:
+        if file_path.exists():
+            try:
+                with open(file_path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Error loading task: {str(e)}")
     
-    try:
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading task: {str(e)}")
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 @router.post("/tasks",
              summary="Create New Task Definition",
@@ -207,22 +274,64 @@ def get_task(task_id: str) -> Dict[str, Any]:
 def create_task(task: TaskDefinition) -> Dict[str, str]:
     """Create new task definition"""
     
+    # Auto-generate required fields if not provided
+    if not task.id:
+        # Generate ID from name
+        task.id = task.name.lower().replace(" ", "-").replace("_", "-")
+        # Ensure uniqueness
+        counter = 1
+        base_id = task.id
+        while (TASK_DEFINITIONS_PATH / f"task_{task.id}.json").exists():
+            task.id = f"{base_id}-{counter}"
+            counter += 1
+    
+    if not task.status:
+        task.status = "active"
+    
+    if not task.workflow_position:
+        task.workflow_position = "operation"  # Default position
+    
+    if not task.estimated_duration_seconds:
+        task.estimated_duration_seconds = 300  # Default 5 minutes
+    
+    if not task.quality_checks:
+        task.quality_checks = ["completion_check"]
+    
+    if not task.outputs:
+        task.outputs = ["task_result"]
+    
+    if not task.prerequisites:
+        task.prerequisites = []
+    
+    if not task.success_criteria:
+        task.success_criteria = {"completion": "successful"}
+    
     # Set timestamps
     now = datetime.utcnow().isoformat() + "Z"
-    task.created_at = now
+    if not task.created_at:
+        task.created_at = now
     task.updated_at = now
     
-    file_path = INSTRUMENT_DEFINITIONS_PATH / f"task_{task.id}.json"
+    # Set default creator
+    if not task.created_by:
+        task.created_by = "user"
+    
+    file_path = TASK_DEFINITIONS_PATH / f"task_{task.id}.json"
     
     if file_path.exists():
         raise HTTPException(status_code=400, detail=f"Task {task.id} already exists")
     
     try:
+        # Ensure directory exists
+        TASK_DEFINITIONS_PATH.mkdir(exist_ok=True)
+        
         with open(file_path, 'w') as f:
             json.dump(task.dict(), f, indent=2)
         
         return {"message": f"Task {task.name} created successfully", "id": task.id}
         
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Permission denied: Cannot create task file. Please check file system permissions.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating task: {str(e)}")
 
@@ -232,7 +341,7 @@ def create_task(task: TaskDefinition) -> Dict[str, str]:
 def update_task(task_id: str, task: TaskDefinition) -> Dict[str, str]:
     """Update existing task definition"""
     
-    file_path = INSTRUMENT_DEFINITIONS_PATH / f"task_{task_id}.json"
+    file_path = TASK_DEFINITIONS_PATH / f"task_{task_id}.json"
     
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
@@ -255,7 +364,7 @@ def update_task(task_id: str, task: TaskDefinition) -> Dict[str, str]:
 def delete_task(task_id: str) -> Dict[str, str]:
     """Delete task definition"""
     
-    file_path = INSTRUMENT_DEFINITIONS_PATH / f"task_{task_id}.json"
+    file_path = TASK_DEFINITIONS_PATH / f"task_{task_id}.json"
     
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
@@ -272,17 +381,88 @@ def delete_task(task_id: str) -> Dict[str, str]:
         
         return {"message": f"Task {task_id} deleted successfully"}
         
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Permission denied: Cannot delete task file. The file system may be read-only or you may not have sufficient permissions.")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task file not found: {task_id}")
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting task: {str(e)}")
 
+@router.patch("/instruments/{instrument_id}/disable",
+              summary="Disable Instrument Definition",
+              description="Mark an instrument as inactive (soft delete)")
+def disable_instrument(instrument_id: str) -> Dict[str, str]:
+    """Mark instrument as inactive instead of deleting"""
+    
+    file_path = INSTRUMENT_DEFINITIONS_PATH / f"{instrument_id}.json"
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Instrument {instrument_id} not found")
+    
+    try:
+        # Read current data
+        with open(file_path, 'r') as f:
+            instrument = json.load(f)
+        
+        # Mark as inactive
+        instrument['status'] = 'inactive'
+        instrument['updated_at'] = datetime.utcnow().isoformat() + "Z"
+        
+        # Write back
+        with open(file_path, 'w') as f:
+            json.dump(instrument, f, indent=2)
+        
+        return {"message": f"Instrument {instrument_id} marked as inactive"}
+        
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Permission denied: Cannot modify instrument file. The file system may be read-only.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error disabling instrument: {str(e)}")
+
+@router.patch("/tasks/{task_id}/disable",
+              summary="Disable Task Definition",
+              description="Mark a task as inactive (soft delete)")
+def disable_task(task_id: str) -> Dict[str, str]:
+    """Mark task as inactive instead of deleting"""
+    
+    file_path = TASK_DEFINITIONS_PATH / f"task_{task_id}.json"
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    
+    try:
+        # Read current data
+        with open(file_path, 'r') as f:
+            task = json.load(f)
+        
+        # Mark as inactive
+        task['status'] = 'inactive'
+        task['updated_at'] = datetime.utcnow().isoformat() + "Z"
+        
+        # Write back
+        with open(file_path, 'w') as f:
+            json.dump(task, f, indent=2)
+        
+        return {"message": f"Task {task_id} marked as inactive"}
+        
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Permission denied: Cannot modify task file. The file system may be read-only.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error disabling task: {str(e)}")
+
 @router.get("/node-palette", 
             summary="Get Node Palette Data",
-            description="Get all instruments and tasks formatted for the frontend node palette")
-def get_node_palette_data() -> Dict[str, List[Dict[str, Any]]]:
+            description="Get all instruments, tasks, and services formatted for the frontend node palette")
+def get_node_palette_data(db: Session = Depends(get_db)) -> Dict[str, List[Dict[str, Any]]]:
     """Get node palette data for frontend"""
     
     instruments = list_instruments()
     tasks = list_tasks()
+    
+    # Get services from database
+    services = db.query(Service).filter(Service.enabled == True).all()
     
     # Format for node palette
     palette_data = {
@@ -292,9 +472,11 @@ def get_node_palette_data() -> Dict[str, List[Dict[str, Any]]]:
                 "name": inst["name"],
                 "category": inst["category"],
                 "description": inst["description"],
-                "parameters": inst["parameters"],
+                "parameters": _merge_parameters(inst),  # Keep for backwards compatibility
+                "common_parameters": inst.get("common_parameters", {}),  # Preserve original structure
+                "specific_parameters": inst.get("specific_parameters", {}),  # Preserve original structure
                 "typical_runtime": inst["typical_runtime_seconds"],
-                "capabilities": inst["capabilities"]
+                "capabilities": inst.get("capabilities", [])
             }
             for inst in instruments if inst.get("status") == "active"
         ],
@@ -304,11 +486,25 @@ def get_node_palette_data() -> Dict[str, List[Dict[str, Any]]]:
                 "name": task["name"],
                 "category": task["category"], 
                 "description": task["description"],
-                "parameters": task["parameters"],
-                "estimated_duration": task["estimated_duration_seconds"],
-                "workflow_position": task["workflow_position"]
+                "parameters": _merge_parameters(task),  # Keep for backwards compatibility
+                "common_parameters": task.get("common_parameters", {}),  # Preserve original structure
+                "specific_parameters": task.get("specific_parameters", {}),  # Preserve original structure
+                "estimated_duration": task.get("estimated_duration_seconds", 300),
+                "workflow_position": task.get("workflow_position", "operation")
             }
             for task in tasks if task.get("status") == "active"
+        ],
+        "services": [
+            {
+                "id": str(service.id),
+                "name": service.name,
+                "description": service.description,
+                "type": service.type,
+                "endpoint": service.endpoint,
+                "parameters": service.default_parameters or {},
+                "enabled": service.enabled
+            }
+            for service in services
         ]
     }
     

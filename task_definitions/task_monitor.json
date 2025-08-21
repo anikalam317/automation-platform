@@ -1,0 +1,60 @@
+{
+  "id": "task-monitor",
+  "name": "Monitor",
+  "category": "Data Collection",
+  "description": "Monitor process parameters using NIR spectroscopy",
+  "workflow_position": "monitoring",
+  "status": "active",
+  "compatible_instruments": ["nir-pat"],
+  "required_capabilities": [
+    "spectroscopy",
+    "nir"
+  ],
+  "optional_capabilities": [
+    "multivariate_analysis"
+  ],
+  "estimated_duration_seconds": 300,
+  "parameters": {
+    "sample_id": {
+      "type": "string",
+      "label": "Sample ID",
+      "default": "auto-generated",
+      "required": true
+    },
+    "scans": {
+      "type": "number",
+      "label": "Number of Scans",
+      "min": 1,
+      "max": 256,
+      "default": 32,
+      "required": true
+    },
+    "wavelength_range": {
+      "type": "string",
+      "label": "Wavelength Range (nm)",
+      "default": "1000-2500",
+      "required": false
+    },
+    "resolution": {
+      "type": "number",
+      "label": "Resolution (nm)",
+      "min": 1,
+      "max": 16,
+      "default": 2,
+      "required": false
+    },
+    "apply_models": {
+      "type": "boolean",
+      "label": "Apply Calibration Models",
+      "default": true,
+      "required": false
+    }
+  },
+  "quality_checks": ["spectral_quality", "signal_noise_ratio"],
+  "outputs": ["spectrum_data", "predictions"],
+  "prerequisites": ["sample_measurement"],
+  "success_criteria": {
+    "signal_noise_ratio": "> 100:1",
+    "spectral_resolution": "≤ 2 nm"
+  }
+}

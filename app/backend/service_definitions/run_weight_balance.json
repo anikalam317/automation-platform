@@ -1,0 +1,22 @@
+{
+  "name": "Run Weight Balance",
+  "category": "Sample Measurement",
+  "type": "measurement_service",
+  "description": "Execute weight measurement using analytical balance",
+  "endpoint": "http://localhost:6001",
+  "required_instruments": [
+    "Weight Balance"
+  ],
+  "capabilities": [
+    "balance",
+    "measurement",
+    "data_logging"
+  ],
+  "parameters": {
+    "measurement_mode": "automatic",
+    "stabilization_time": 3,
+    "number_of_readings": 3,
+    "output_format": "json"
+  },
+  "execution_script": "services/run_weight_balance.py"
+}

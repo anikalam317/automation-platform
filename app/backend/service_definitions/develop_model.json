@@ -1,0 +1,22 @@
+{
+  "name": "Develop Model",
+  "category": "Code",
+  "type": "modeling_service",
+  "description": "Develop predictive models using multivariate analysis",
+  "endpoint": "http://localhost:6005",
+  "required_instruments": [
+    "Database"
+  ],
+  "capabilities": [
+    "machine_learning",
+    "statistical_modeling",
+    "validation"
+  ],
+  "parameters": {
+    "algorithm": "PLS",
+    "validation_method": "cross_validation",
+    "feature_selection": true,
+    "model_export": "pmml"
+  },
+  "execution_script": "services/develop_model.py"
+}

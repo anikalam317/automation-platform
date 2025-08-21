@@ -21,5 +21,6 @@ def get_db():
 def init_db():
     """Initialize database tables"""
     from ..models import database  # noqa: F401
+    from ..models import enhanced_models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

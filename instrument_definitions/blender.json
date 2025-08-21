@@ -1,0 +1,62 @@
+{
+  "id": "blender-pat",
+  "name": "Blender",
+  "category": "Equipment",
+  "type": "high_shear_mixer",
+  "manufacturer": "Silverson",
+  "model": "L5M-A",
+  "description": "High-shear mixer for blending and particle size reduction",
+  "endpoint": "http://localhost:5014",
+  "status_endpoint": "http://localhost:5014/status",
+  "status": "active",
+  "typical_runtime_seconds": 900,
+  "capabilities": [
+    "blending",
+    "high_shear",
+    "particle_size_control"
+  ],
+  "specifications": {
+    "speed_range": "500-10000 rpm",
+    "batch_size": "0.01-20 L",
+    "power": "750W",
+    "rotor_stator": "standard square hole"
+  },
+  "parameters": {
+    "sample_id": {
+      "type": "string",
+      "label": "Sample ID",
+      "default": "auto-generated",
+      "required": true
+    },
+    "speed": {
+      "type": "number",
+      "label": "Blending Speed (RPM)",
+      "min": 500,
+      "max": 10000,
+      "default": 5000,
+      "required": true
+    },
+    "batch_size": {
+      "type": "number",
+      "label": "Batch Size (L)",
+      "min": 0.01,
+      "max": 20,
+      "default": 1.0,
+      "required": true
+    },
+    "duration": {
+      "type": "number",
+      "label": "Blending Duration (seconds)",
+      "min": 30,
+      "max": 1800,
+      "default": 900,
+      "required": true
+    },
+    "reverse_operation": {
+      "type": "boolean",
+      "label": "Reverse Operation",
+      "default": false,
+      "required": false
+    }
+  }
+}

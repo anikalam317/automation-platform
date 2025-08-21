@@ -1,0 +1,24 @@
+{
+  "name": "Run Blender",
+  "category": "Operation",
+  "type": "blending_service",
+  "description": "Execute blending operation for material homogenization",
+  "endpoint": "http://localhost:6003",
+  "required_instruments": [
+    "Blender"
+  ],
+  "capabilities": [
+    "blending",
+    "high_shear",
+    "quality_control"
+  ],
+  "parameters": {
+    "blend_profile": "high_shear",
+    "quality_metrics": [
+      "uniformity",
+      "particle_size"
+    ],
+    "process_optimization": true
+  },
+  "execution_script": "services/run_blender.py"
+}

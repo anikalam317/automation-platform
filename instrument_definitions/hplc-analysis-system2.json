@@ -1,0 +1,89 @@
+{
+  "id": "hplc-analysis-system2",
+  "name": "HPLC Analysis System_2",
+  "category": "analytical",
+  "manufacturer": "Agilent",
+  "model": "1260 Infinity II",
+  "description": "High-Performance Liquid Chromatography system for pharmaceutical analysis",
+  "capabilities": [
+    "Pharmaceutical assay analysis",
+    "Related substances testing",
+    "Dissolution profiling",
+    "Stability indicating methods"
+  ],
+  "parameters": {
+    "method": {
+      "type": "select",
+      "label": "Analysis Method",
+      "options": [
+        "USP_assay_method",
+        "related_substances",
+        "dissolution_profile",
+        "stability_indicating"
+      ],
+      "default": "USP_assay_method",
+      "required": true
+    },
+    "injection_volume": {
+      "type": "number",
+      "label": "Injection Volume (\u00b5L)",
+      "min": 1,
+      "max": 100,
+      "default": 10,
+      "step": 0.1,
+      "required": true
+    },
+    "runtime_minutes": {
+      "type": "number",
+      "label": "Runtime (minutes)",
+      "min": 5,
+      "max": 60,
+      "default": 20,
+      "step": 0.5,
+      "required": true
+    },
+    "column_temperature": {
+      "type": "number",
+      "label": "Column Temperature (\u00b0C)",
+      "min": 20,
+      "max": 80,
+      "default": 30,
+      "step": 1,
+      "required": false
+    },
+    "flow_rate": {
+      "type": "number",
+      "label": "Flow Rate (mL/min)",
+      "min": 0.1,
+      "max": 5,
+      "default": 1,
+      "step": 0.1,
+      "required": false
+    }
+  },
+  "connection": {
+    "type": "http",
+    "simulation_endpoint": "http://hplc-system:5030",
+    "real_endpoint": null,
+    "status_endpoint": "/status",
+    "execute_endpoint": "/analyze",
+    "results_endpoint": "/results",
+    "reset_endpoint": "/reset"
+  },
+  "validation": {
+    "system_suitability_required": true,
+    "calibration_required": true,
+    "maintenance_schedule": "monthly"
+  },
+  "outputs": {
+    "chromatogram": true,
+    "peak_data": true,
+    "purity_analysis": true,
+    "system_suitability": true
+  },
+  "typical_runtime_seconds": 80,
+  "status": "active",
+  "created_by": "user",
+  "created_at": "2025-08-20T17:45:06.709232Z",
+  "updated_at": "2025-08-20T17:45:06.709232Z"
+}

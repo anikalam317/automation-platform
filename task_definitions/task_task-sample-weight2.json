@@ -1,0 +1,18 @@
+{
+  "id": "task-sample-weight2",
+  "name": "Sample Weight_2",
+  "category": "analytical",
+  "description": "weight sample",
+  "workflow_position": "analytical",
+  "compatible_instruments": [],
+  "parameters": {},
+  "quality_checks": [],
+  "outputs": [],
+  "prerequisites": [],
+  "estimated_duration_seconds": 1800,
+  "success_criteria": {},
+  "status": "active",
+  "created_by": "user",
+  "created_at": "2025-08-20T17:44:36.148018Z",
+  "updated_at": "2025-08-20T17:44:36.148018Z"
+}

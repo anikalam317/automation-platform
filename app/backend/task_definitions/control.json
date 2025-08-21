@@ -1,0 +1,32 @@
+{
+  "name": "Control",
+  "category": "Control",
+  "description": "Automated process control and optimization",
+  "required_capabilities": [
+    "process_control",
+    "pid_control"
+  ],
+  "optional_capabilities": [
+    "adaptive_control",
+    "optimization"
+  ],
+  "estimated_duration_seconds": 120,
+  "parameters": {
+    "control_variable": {
+      "type": "string",
+      "required": true
+    },
+    "setpoint": {
+      "type": "number",
+      "required": true
+    },
+    "pid_parameters": {
+      "type": "object",
+      "default": {
+        "kp": 1.0,
+        "ki": 0.1,
+        "kd": 0.01
+      }
+    }
+  }
+}

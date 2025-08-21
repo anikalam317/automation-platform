@@ -6,13 +6,36 @@ import threading
 from ..core.config import settings
 from ..core.database import init_db
 from .v1 import workflows, tasks, webhooks
+# Import modules individually to avoid cascade failures
 try:
-    from .v1 import services, ai, task_templates, instrument_management
+    from .v1 import services
 except ImportError:
     services = None
+
+try:
+    from .v1 import ai
+except ImportError:
     ai = None
+
+try:
+    from .v1 import task_templates
+except ImportError:
     task_templates = None
+
+try:
+    from .v1 import instrument_management
+except ImportError:
     instrument_management = None
+
+try:
+    from .v1 import enhanced_services
+except ImportError:
+    enhanced_services = None
+
+try:
+    from .v1 import enhanced_workflows
+except ImportError:
+    enhanced_workflows = None
 from ..services.handlers.notification_listeners import NotificationListener
 
 
@@ -91,5 +114,13 @@ if ai:
     app.include_router(ai.router)
 if task_templates:
     app.include_router(task_templates.router)
+    # Include enhanced task template endpoints
+    app.include_router(task_templates.enhanced_router)
 if instrument_management:
     app.include_router(instrument_management.router)
+
+# Enhanced v2 API endpoints
+if enhanced_services:
+    app.include_router(enhanced_services.router)
+if enhanced_workflows:
+    app.include_router(enhanced_workflows.router)

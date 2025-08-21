@@ -1,0 +1,132 @@
+[
+  {
+    "name": "Weight Balance",
+    "category": "Equipment",
+    "type": "analytical_balance",
+    "manufacturer": "Mettler Toledo",
+    "model": "XPE205",
+    "description": "High-precision analytical balance for sample measurement",
+    "endpoint": "http://localhost:5001",
+    "status_endpoint": "http://localhost:5001/status",
+    "capabilities": [
+      "balance",
+      "measurement",
+      "precision_weighing"
+    ],
+    "specifications": {
+      "max_weight": "220g",
+      "readability": "0.01mg",
+      "linearity": "0.02mg",
+      "interface": "RS232/USB"
+    },
+    "parameters": {
+      "stability_time": 3,
+      "auto_tare": true,
+      "environmental_monitoring": true
+    }
+  },
+  {
+    "name": "Mixer",
+    "category": "Equipment",
+    "type": "overhead_stirrer",
+    "manufacturer": "IKA",
+    "model": "RW20",
+    "description": "Overhead stirrer for sample mixing and homogenization",
+    "endpoint": "http://localhost:5002",
+    "status_endpoint": "http://localhost:5002/status",
+    "capabilities": [
+      "mixing",
+      "motor_control",
+      "temperature_control"
+    ],
+    "specifications": {
+      "speed_range": "10-2000 rpm",
+      "torque": "50 Ncm",
+      "viscosity_max": "10000 mPas",
+      "temperature_range": "-10 to 300\u00b0C"
+    },
+    "parameters": {
+      "speed_accuracy": "\u00b11%",
+      "temperature_accuracy": "\u00b10.5\u00b0C",
+      "digital_display": true
+    }
+  },
+  {
+    "name": "NIR",
+    "category": "Sensor",
+    "type": "nir_spectrometer",
+    "manufacturer": "Bruker",
+    "model": "MPA II",
+    "description": "Near-infrared spectrometer for real-time process monitoring",
+    "endpoint": "http://localhost:5003",
+    "status_endpoint": "http://localhost:5003/status",
+    "capabilities": [
+      "spectroscopy",
+      "nir",
+      "multivariate_analysis"
+    ],
+    "specifications": {
+      "wavelength_range": "1000-2500 nm",
+      "resolution": "\u22642 nm",
+      "scan_time": "0.1-10 seconds",
+      "detector": "InGaAs"
+    },
+    "parameters": {
+      "integration_time": 100,
+      "averaging": 32,
+      "reference_measurement": "automatic"
+    }
+  },
+  {
+    "name": "Blender",
+    "category": "Equipment",
+    "type": "high_shear_mixer",
+    "manufacturer": "Silverson",
+    "model": "L5M-A",
+    "description": "High-shear mixer for blending and particle size reduction",
+    "endpoint": "http://localhost:5004",
+    "status_endpoint": "http://localhost:5004/status",
+    "capabilities": [
+      "blending",
+      "high_shear",
+      "particle_size_control"
+    ],
+    "specifications": {
+      "speed_range": "500-10000 rpm",
+      "batch_size": "0.01-20 L",
+      "power": "750W",
+      "rotor_stator": "standard square hole"
+    },
+    "parameters": {
+      "variable_speed": true,
+      "reverse_operation": false,
+      "digital_tachometer": true
+    }
+  },
+  {
+    "name": "Database",
+    "category": "Software",
+    "type": "database_server",
+    "manufacturer": "PostgreSQL",
+    "model": "v14",
+    "description": "Database system for data storage and retrieval",
+    "endpoint": "http://localhost:5005",
+    "status_endpoint": "http://localhost:5005/status",
+    "capabilities": [
+      "data_storage",
+      "sql_queries",
+      "real_time_access"
+    ],
+    "specifications": {
+      "type": "relational_database",
+      "concurrent_connections": 100,
+      "storage": "unlimited",
+      "backup": "continuous"
+    },
+    "parameters": {
+      "connection_pool": 20,
+      "query_timeout": 30,
+      "auto_vacuum": true
+    }
+  }
+]

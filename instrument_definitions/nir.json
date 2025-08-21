@@ -1,0 +1,60 @@
+{
+  "id": "nir-pat",
+  "name": "NIR Spectrometer",
+  "category": "Sensor",
+  "type": "nir_spectrometer",
+  "manufacturer": "Bruker",
+  "model": "MPA II",
+  "description": "Near-infrared spectrometer for real-time process monitoring",
+  "endpoint": "http://localhost:5013",
+  "status_endpoint": "http://localhost:5013/status",
+  "status": "active",
+  "typical_runtime_seconds": 300,
+  "capabilities": [
+    "spectroscopy",
+    "nir",
+    "multivariate_analysis"
+  ],
+  "specifications": {
+    "wavelength_range": "1000-2500 nm",
+    "resolution": "≤2 nm",
+    "scan_time": "0.1-10 seconds",
+    "detector": "InGaAs"
+  },
+  "parameters": {
+    "sample_id": {
+      "type": "string",
+      "label": "Sample ID",
+      "default": "auto-generated",
+      "required": true
+    },
+    "scans": {
+      "type": "number",
+      "label": "Number of Scans",
+      "min": 1,
+      "max": 256,
+      "default": 32,
+      "required": true
+    },
+    "integration_time": {
+      "type": "number",
+      "label": "Integration Time (ms)",
+      "min": 10,
+      "max": 1000,
+      "default": 100,
+      "required": false
+    },
+    "apply_models": {
+      "type": "boolean",
+      "label": "Apply Calibration Models",
+      "default": true,
+      "required": false
+    },
+    "reference_measurement": {
+      "type": "boolean",
+      "label": "Collect Reference",
+      "default": false,
+      "required": false
+    }
+  }
+}

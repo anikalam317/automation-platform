@@ -1,0 +1,28 @@
+{
+  "name": "Monitor",
+  "category": "Data Collection",
+  "description": "Monitor process parameters using NIR spectroscopy",
+  "required_capabilities": [
+    "spectroscopy",
+    "nir"
+  ],
+  "optional_capabilities": [
+    "multivariate_analysis"
+  ],
+  "estimated_duration_seconds": 180,
+  "parameters": {
+    "wavelength_range": {
+      "type": "string",
+      "default": "1100-2500"
+    },
+    "resolution": {
+      "type": "number",
+      "default": 2,
+      "unit": "nm"
+    },
+    "scans": {
+      "type": "number",
+      "default": 32
+    }
+  }
+}

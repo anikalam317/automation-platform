@@ -1,0 +1,33 @@
+{
+  "name": "Calibration",
+  "category": "Data Analysis",
+  "description": "Calibrate analytical models with reference data",
+  "required_capabilities": [
+    "data_analysis",
+    "statistical_modeling"
+  ],
+  "optional_capabilities": [
+    "pls_regression",
+    "cross_validation"
+  ],
+  "estimated_duration_seconds": 900,
+  "parameters": {
+    "model_type": {
+      "type": "string",
+      "default": "PLS",
+      "options": [
+        "PLS",
+        "PCR",
+        "MLR"
+      ]
+    },
+    "validation_method": {
+      "type": "string",
+      "default": "cross_validation"
+    },
+    "components": {
+      "type": "number",
+      "default": 5
+    }
+  }
+}

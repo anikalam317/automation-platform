@@ -6,7 +6,7 @@ celery_app = Celery(
     "laf",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["laf.tasks.workers"],
+    include=["laf.tasks.workers", "laf.tasks.plugin_workers"],
 )
 
 celery_app.conf.update(
